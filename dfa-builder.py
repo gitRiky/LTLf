@@ -441,25 +441,8 @@ def print_nfa(s0, s, transition_function):
 def run_nfa(sequence, s0, transition_function):
     current_state = s0
     for elem in sequence:
-        if OR_STATE_SEPARATOR in current_state:
-            split = current_state.split(OR_STATE_SEPARATOR)
-            new_state = ""
-            for state in split:
-                if state != ENDED:
-                    n_state = transition_function[(state, elem)]
-                    if n_state == TRUE:
-                        new_state = TRUE
-                        break
-                    if n_state != FALSE:
-                        if len(new_state) < 1:
-                            new_state += n_state
-                        else:
-                            new_state += OR_STATE_SEPARATOR + n_state
-            if new_state == "":
-                new_state = FALSE
-        else:
-            new_state = transition_function[(current_state, elem)]
-        print("State: " + current_state + "\nFluents: " + str(elem) + "\nNew state: " + new_state + "\n")
+        new_state = transition_function[(current_state, elem)]
+        print("State: {" + current_state + "}\nFluents: " + str(elem) + "\nNew state: {" + new_state + "}\n")
         if new_state == TRUE:
             return True
         if new_state == FALSE:
@@ -483,7 +466,6 @@ def main():
     # The dictionary cl will be used in the delta function for understanding what kind of formula is it and what
     # recursive rule it has to follow
     sigma(nnf, cl)
-    print("CL\n" + str(cl))
     with codecs.open(alphabet_file, 'r') as file_handle:
         for line in file_handle:
             line = line.replace("\n", "")

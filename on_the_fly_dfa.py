@@ -27,8 +27,6 @@ OR_STATE_SEPARATOR = ", "
 
 cl = {}
 
-PRINT_SINGLE_STATE_TRANSITION = False
-
 
 def find_alpha_beta(subformula, formula_type):
     split = subformula.replace("(", "( ").replace(")", " )").split()
@@ -208,6 +206,26 @@ def delta(state, action_effect):
                 if append:
                     return_value += AND_STATE_SEPARATOR + elem
             return return_value
+    if OR_STATE_SEPARATOR in state:
+        states_set = set([])
+        for elem in state.split(OR_STATE_SEPARATOR):
+            d = delta(elem, action_effect)
+            if d == TRUE:                       # For the angelic non-determinism
+                return TRUE
+            if d != FALSE:
+                states_set.add(d)
+        if len(states_set) < 1:
+            return FALSE
+        else:
+            new_state = ""
+            first = True
+            for s in states_set:
+                if first:
+                    first = False
+                    new_state += s
+                else:
+                    new_state += OR_STATE_SEPARATOR + s
+            return new_state
     formula_type = cl[state]
     if formula_type == LIT:
         split = state.replace(" ", ",").replace("not,", "not ").split()
@@ -334,49 +352,23 @@ def delta(state, action_effect):
         return d1 + OR_STATE_SEPARATOR + d2
 
 
-def print_state(current_state, fluents, new_state, nd=False):
-    if nd:
-        print("**Single-state transition**")
-        print("State: " + current_state)
-        print("Fluents: " + str(fluents))
-        print("New state: " + new_state + "\n")
-    else:
-        print("\tState: " + current_state)
-        print("\tFluents: " + str(fluents))
-        print("\tNew state: " + new_state + "\n")
+def print_state(current_state, fluents, new_state):
+    print("\tState: " + current_state)
+    print("\tFluents: " + str(fluents))
+    print("\tNew state: " + new_state + "\n")
 
 
 def run_on_the_fly_nfa(s0, trace):
     current_state = s0
     for fluents in trace:
+        print(str(fluents))
         fluents_last = fluents + (LAST,)
-        if OR_STATE_SEPARATOR in current_state:
-            next_state = ""
-            split = current_state.split(OR_STATE_SEPARATOR)
-            for state in split:
-                if state != ENDED:
-                    n_state = delta(state, fluents)
-                    if PRINT_SINGLE_STATE_TRANSITION:
-                        print_state(state, fluents, n_state, True)
-                    if n_state == TRUE:
-                        next_state = TRUE
-                        break
-                    if delta(state, fluents_last) == TRUE:
-                        n_state = ENDED
-                    if n_state != FALSE:
-                        if len(next_state) < 1:
-                            next_state += n_state
-                        else:
-                            next_state += OR_STATE_SEPARATOR + n_state
-            if next_state == "":
-                next_state = FALSE
-        else:
-            next_state = delta(current_state, fluents)
-            if next_state != TRUE and delta(current_state, fluents_last) == TRUE:
-                if next_state != "":
-                    next_state += OR_STATE_SEPARATOR + ENDED
-                else:
-                    next_state = ENDED
+        next_state = delta(current_state, fluents)
+        if next_state != TRUE and delta(current_state, fluents_last) == TRUE:
+            if next_state != "":
+                next_state += OR_STATE_SEPARATOR + ENDED
+            else:
+                next_state = ENDED
         print_state(current_state, fluents, next_state)
         if next_state == TRUE:
             return True

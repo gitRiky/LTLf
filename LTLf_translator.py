@@ -77,7 +77,6 @@ def remove_useless_parenthesis(ltlf_formula):
 
 
 def sigma(ltlf_formula, cl, literal=False):
-    print("FORMULA: " + ltlf_formula)
     if remove_spaces(ltlf_formula) in cl.keys():                         # formula already in CL
         print("Sub-formula " + str(ltlf_formula) + " already in Q")
         return
@@ -105,7 +104,6 @@ def sigma(ltlf_formula, cl, literal=False):
             return
 
     split = ltlf_formula.replace("(", "( ").replace(")", " )").split()
-    print(split)
     pointer = ["", sys.maxsize, 0]
     count = 0
     parenthesis = 0
@@ -123,10 +121,8 @@ def sigma(ltlf_formula, cl, literal=False):
                 print("Pointer: ", pointer)
         count += 1
     operator = pointer[0]
-    print("Operator: " + operator)
     if operator == "":
         literal = True
-        print("Literal = True")
         sigma(ltlf_formula, cl, literal)
         return
     cl[remove_spaces(ltlf_formula)] = operator
@@ -154,7 +150,6 @@ def sigma(ltlf_formula, cl, literal=False):
         subformula = populate_subformula(split, pointer[2] + 2, len(split)-1)
         sigma(subformula, cl)
         subformula = NEXT + " (" + populate_subformula(split, 0, len(split)) + ")"
-        print("UNTIL: ", subformula)
         cl[remove_spaces(subformula)] = NEXT
     elif operator == WEAK_UNTIL:
         subformula = populate_subformula(split, 1, pointer[2]-1)
