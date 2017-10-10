@@ -344,6 +344,7 @@ def create_proposition_combination(result):
 # This is the real nfa builder method: for each fluents combination, it applies the delta for each state until
 # no more states are added. It returns the set of states s and the transition function
 def ltlf_2_nfa(propositions, nnf):
+    exist_true_state = False
     s0 = nnf
     sf = FALSE
     s_before = {sf}
@@ -357,6 +358,8 @@ def ltlf_2_nfa(propositions, nnf):
             if state != TRUE and state != FALSE:
                 for prop in propositions:
                     new_state = delta(state, prop)
+                    if new_state == TRUE and LAST not in prop:
+                        exist_true_state = True
                     print("New state: " + new_state)
                     tup = (state, prop)
                     if OR_STATE_SEPARATOR in new_state:               # is an or of states
@@ -376,10 +379,11 @@ def ltlf_2_nfa(propositions, nnf):
         print("Fluents \t" + str(fluents))
         print("New State \t" + transition_function[key] + "\n")
     print(s)
-    return s, transition_function
+    return s, transition_function, exist_true_state
 
 
 def remove_last(transition_function):
+    exist_ended_state = False
     new_transition_function = {}
     for key in transition_function.keys():
         fluents = key[1]
@@ -390,6 +394,7 @@ def remove_last(transition_function):
             else:
                 new_transition_function[key] = transition_function[key]
         elif transition_function[key] == TRUE:
+            exist_ended_state = True
             new_tuple = ()
             state = key[0]
             for elem in fluents:
@@ -402,7 +407,7 @@ def remove_last(transition_function):
                 new_transition_function[new_key] = new_transition_function[new_key] + OR_STATE_SEPARATOR + ENDED
             else:
                 new_transition_function[new_key] = ENDED
-    return new_transition_function
+    return new_transition_function, exist_ended_state
 
 
 def print_nfa(s0, s, transition_function):
@@ -410,11 +415,14 @@ def print_nfa(s0, s, transition_function):
     print("\n\n----------------------------------------------\n")
     print("Alphabet: " + str(alphabet) + "\n")
 
-    s.add(ENDED)
     print("States: " + str(s) + "\n")
     print("Initial state: " + s0 + "\n")
 
-    f = {TRUE, ENDED}
+    f = set([])
+    if TRUE in s:
+        f.add(TRUE)
+    if ENDED in s:
+        f.add(ENDED)
     print("Final states: " + str(f) + "\n")
     print("Transition function:")
     for key in transition_function.keys():
@@ -478,8 +486,12 @@ def main():
             alphabet.append(line)
     alphabet.append(LAST)
     create_proposition_combination(proposition_combination)
-    s, transition_function = ltlf_2_nfa(proposition_combination, nnf)
-    new_transition_function = remove_last(transition_function)
+    s, transition_function, exist_true_state = ltlf_2_nfa(proposition_combination, nnf)
+    new_transition_function, exist_ended_state = remove_last(transition_function)
+    if not exist_true_state:
+        s.remove(TRUE)
+    if exist_ended_state:
+        s.add(ENDED)
     print_nfa(nnf, s, new_transition_function)
     done = False
     while not done:
@@ -493,11 +505,14 @@ def main():
             with codecs.open(sequence_file_name, 'r') as file_handle:
                 for line in file_handle:
                     line = line.replace("\n", "")
-                    split = line.split(",")
-                    tuple_res = ()
-                    for elem in split:
-                        tuple_res += (elem,)
-                    sequence.append(tuple_res)
+                    if line == "":
+                        sequence.append(())
+                    else:
+                        split = line.split(",")
+                        tuple_res = ()
+                        for elem in split:
+                            tuple_res += (elem,)
+                        sequence.append(tuple_res)
             print("\n-----------------------------------------------------------\n")
             final_state_reached = run_nfa(sequence, nnf, new_transition_function)
             if final_state_reached:
