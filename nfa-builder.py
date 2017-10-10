@@ -141,7 +141,14 @@ def delta(state, action_effect):
             return d2
         if d2 == TRUE:
             return d1
-        return d1 + AND_STATE_SEPARATOR + d2
+        if OR_STATE_SEPARATOR in d1:
+            split = d1.split(OR_STATE_SEPARATOR)
+            return_value = split[0] + AND_STATE_SEPARATOR + d2
+            for state in split[1:]:
+                return_value += OR_STATE_SEPARATOR + state + AND_STATE_SEPARATOR + d2
+            return return_value
+        else:
+            return d1 + AND_STATE_SEPARATOR + d2
     elif formula_type == UNTIL:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
