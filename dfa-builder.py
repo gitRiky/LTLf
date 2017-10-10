@@ -56,6 +56,32 @@ def find_alpha(formula_type, subformula):
 
 
 def delta(state, action_effect):
+    if OR_STATE_SEPARATOR in state:
+        states_set = set([])
+        for elem in state.split(OR_STATE_SEPARATOR):
+            if elem != ENDED:
+                d = delta(elem, action_effect)
+                if d == TRUE:                       # For the angelic non-determinism
+                    return TRUE
+                if d != FALSE:
+                    if OR_STATE_SEPARATOR in d:
+                        for elem in d.split(OR_STATE_SEPARATOR):
+                            if elem not in states_set:
+                                states_set.add(elem)
+                    elif d not in states_set:
+                        states_set.add(d)
+        if len(states_set) < 1:
+            return FALSE
+        else:
+            new_state = ""
+            first = True
+            for s in states_set:
+                if first:
+                    first = False
+                    new_state += s
+                else:
+                    new_state += OR_STATE_SEPARATOR + s
+            return new_state
     if AND_STATE_SEPARATOR in state:
         result_set = []
         split = state.split(AND_STATE_SEPARATOR)
@@ -87,27 +113,6 @@ def delta(state, action_effect):
                 if append:
                     return_value += AND_STATE_SEPARATOR + elem
             return return_value
-    if OR_STATE_SEPARATOR in state:
-        states_set = set([])
-        for elem in state.split(OR_STATE_SEPARATOR):
-            if elem != ENDED:
-                d = delta(elem, action_effect)
-                if d == TRUE:                       # For the angelic non-determinism
-                    return TRUE
-                if d != FALSE:
-                    states_set.add(d)
-        if len(states_set) < 1:
-            return FALSE
-        else:
-            new_state = ""
-            first = True
-            for s in states_set:
-                if first:
-                    first = False
-                    new_state += s
-                else:
-                    new_state += OR_STATE_SEPARATOR + s
-            return new_state
     formula_type = cl[state]
     if formula_type == LIT:
         split = state.replace(" ", ",").replace("not,", "not ").split()
@@ -162,7 +167,14 @@ def delta(state, action_effect):
             return d2
         if d2 == TRUE:
             return d1
-        return d1 + AND_STATE_SEPARATOR + d2
+        if OR_STATE_SEPARATOR in d1:
+            split = d1.split(OR_STATE_SEPARATOR)
+            return_value = split[0] + AND_STATE_SEPARATOR + d2
+            for state in split[1:]:
+                return_value += OR_STATE_SEPARATOR + state + AND_STATE_SEPARATOR + d2
+            return return_value
+        else:
+            return d1 + AND_STATE_SEPARATOR + d2
     elif formula_type == UNTIL:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
@@ -368,8 +380,7 @@ def ltlf_2_dfa(propositions, nnf):
     s_before = set([])
     s = {s0}
     transition_function = {}
-    exist_ended_state = False
-    exist_true_state = False
+
     while s_before != s:
         diff = s.difference(s_before)
         print(diff)
