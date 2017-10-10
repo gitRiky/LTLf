@@ -358,7 +358,7 @@ def print_state(current_state, fluents, new_state):
     print("\tNew state: " + new_state + "\n")
 
 
-def run_on_the_fly_nfa(s0, trace):
+def run_on_the_fly_dfa(s0, trace):
     current_state = s0
     for fluents in trace:
         print(str(fluents))
@@ -404,7 +404,7 @@ def main():
                 tuple_res += (elem,)
             trace.append(tuple_res)
     print("\n------------------------------------------------------\n")
-    final_state_reached = run_on_the_fly_nfa(nnf, trace)
+    final_state_reached = run_on_the_fly_dfa(nnf, trace)
     if final_state_reached:
         print("The trace satisfies the LTLf formula\n")
     else:
