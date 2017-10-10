@@ -90,11 +90,12 @@ def delta(state, action_effect):
     if OR_STATE_SEPARATOR in state:
         states_set = set([])
         for elem in state.split(OR_STATE_SEPARATOR):
-            d = delta(elem, action_effect)
-            if d == TRUE:                       # For the angelic non-determinism
-                return TRUE
-            if d != FALSE:
-                states_set.add(d)
+            if elem != ENDED:
+                d = delta(elem, action_effect)
+                if d == TRUE:                       # For the angelic non-determinism
+                    return TRUE
+                if d != FALSE:
+                    states_set.add(d)
         if len(states_set) < 1:
             return FALSE
         else:
@@ -363,11 +364,12 @@ def create_proposition_combination(result):
 
 def ltlf_2_dfa(propositions, nnf):
     s0 = nnf
-    sf = FALSE
-    s_before = {sf}
-    s = {s0, sf}
-    exist_true_state = False
+    sf = set([])
+    s_before = set([])
+    s = {s0}
     transition_function = {}
+    exist_ended_state = False
+    exist_true_state = False
     while s_before != s:
         diff = s.difference(s_before)
         print(diff)
@@ -375,12 +377,15 @@ def ltlf_2_dfa(propositions, nnf):
         for state in diff:
             if state != TRUE and state != FALSE:
                 for prop in propositions:
+                    last_fluent = prop + (LAST,)
                     new_state = delta(state, prop)
-                    if new_state == TRUE and LAST not in prop:
-                        exist_true_state = True
                     tup = (state, prop)
+                    if delta(state, last_fluent) == TRUE:
+                        new_state += OR_STATE_SEPARATOR + ENDED
                     if new_state not in s:
                         s.add(new_state)
+                        if ENDED in new_state:
+                            sf.add(new_state)
                     transition_function[tup] = new_state
         print(s)
         print(s_before)
@@ -390,52 +395,19 @@ def ltlf_2_dfa(propositions, nnf):
         print("State \t\t" + str(state))
         print("Fluents \t" + str(fluents))
         print("New State \t" + transition_function[key] + "\n")
+
     print(s)
-    return s, transition_function, exist_true_state
+    return s, transition_function, sf
 
 
-def remove_last(transition_function):
-    new_transition_function = {}
-    exist_ended_state = False
-    for key in transition_function.keys():
-        fluents = key[1]
-        if LAST not in fluents:
-            if key in new_transition_function.keys() and transition_function[key] != TRUE:
-                new_transition_function[key] = new_transition_function[key] + \
-                                               OR_STATE_SEPARATOR + transition_function[key]
-            else:
-                new_transition_function[key] = transition_function[key]
-        elif transition_function[key] == TRUE:
-            exist_ended_state = True
-            new_tuple = ()
-            state = key[0]
-            for elem in fluents:
-                if elem != LAST:
-                    new_tuple += (elem,)
-            new_key = (state, new_tuple)
-            if transition_function[new_key] == TRUE:
-                new_transition_function[new_key] = TRUE
-            elif new_key in new_transition_function.keys():
-                new_transition_function[new_key] = new_transition_function[new_key] + OR_STATE_SEPARATOR + ENDED
-            else:
-                new_transition_function[new_key] = ENDED
-    return new_transition_function, exist_ended_state
-
-
-def print_nfa(s0, s, transition_function):
-    alphabet.remove(LAST)
+def print_nfa(s0, s, transition_function, sf):
     print("\n\n----------------------------------------------\n")
     print("Alphabet: " + str(alphabet) + "\n")
 
     print("States: " + str(s) + "\n")
     print("Initial state: " + s0 + "\n")
 
-    f = set([])
-    if TRUE in s:
-        f.add(TRUE)
-    if ENDED in s:
-        f.add(ENDED)
-    print("Final states: " + str(f) + "\n")
+    print("Final states: " + str(sf) + "\n")
     print("Transition function:")
     for key in transition_function.keys():
         state = key[0]
@@ -446,7 +418,7 @@ def print_nfa(s0, s, transition_function):
     print("\n----------------------------------------------\n")
 
 
-def run_nfa(sequence, s0, transition_function):
+def run_nfa(sequence, s0, transition_function, sf):
     current_state = s0
     for elem in sequence:
         new_state = transition_function[(current_state, elem)]
@@ -456,7 +428,7 @@ def run_nfa(sequence, s0, transition_function):
         if new_state == FALSE:
             return False
         current_state = new_state
-    if ENDED in current_state:
+    if current_state in sf:
         return True
     return False
 
@@ -478,15 +450,9 @@ def main():
         for line in file_handle:
             line = line.replace("\n", "")
             alphabet.append(line)
-    alphabet.append(LAST)
     create_proposition_combination(proposition_combination)
-    s, transition_function, exist_true_state = ltlf_2_dfa(proposition_combination, nnf)
-    new_transition_function, exist_ended_state = remove_last(transition_function)
-    if not exist_true_state:
-        s.remove(TRUE)
-    if exist_ended_state:
-        s.add(ENDED)
-    print_nfa(nnf, s, new_transition_function)
+    s, transition_function, sf = ltlf_2_dfa(proposition_combination, nnf)
+    print_nfa(nnf, s, transition_function, sf)
     done = False
     while not done:
         response = input("Do you want to provide a sequence of fluents for simulating a run? (y, n)\n")
@@ -508,7 +474,7 @@ def main():
                             tuple_res += (elem,)
                         sequence.append(tuple_res)
             print("\n-----------------------------------------------------------\n")
-            final_state_reached = run_nfa(sequence, nnf, new_transition_function)
+            final_state_reached = run_nfa(sequence, nnf, transition_function, sf)
             if final_state_reached:
                 print("The trace satisfies the LTLf formula\n")
             else:
