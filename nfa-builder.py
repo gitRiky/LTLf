@@ -239,7 +239,6 @@ def put_neg_inside(subformula):
     left_part = ""
     right_part = ""
     split = subformula.split()
-    print(split)
     if len(split) >= 2:
         if split[0] == NOT and split[1] == "(":
             # NOT before parenthesis, return the formula without the not
@@ -250,12 +249,10 @@ def put_neg_inside(subformula):
                 left_part += pointer[0] + " " + right_part
                 right_part = ""
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
             elif (parenthesis <= pointer[1]) and (has_less_priority(elem, pointer[0])):
                 left_part += pointer[0] + " " + right_part
                 right_part = ""
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
             else:
                 right_part += elem + " "
         else:
@@ -292,7 +289,6 @@ def put_neg_inside(subformula):
 # the negation inside the subformula
 def convert_to_nnf(ltlf_formula):
     split = ltlf_formula.replace("(", "( ").replace(")", " )").split()
-    print(split)
     counter = 0
     parenthesis = 0
     found_not = False
@@ -304,13 +300,11 @@ def convert_to_nnf(ltlf_formula):
     for elem in split:
         if found_not:
             found_not = False
-            print("Not has been found")
             if elem in [NEXT, WEAK_NEXT, EVENTUALLY, GLOBALLY]:
                 parse_subformula = True
                 operator = elem
                 continue
             elif elem == "(":
-                print("Is subformula")
                 parse_subformula = True
             else:       # literal
                 left_part += NOT + " " + elem + " "
@@ -369,7 +363,6 @@ def ltlf_2_nfa(propositions, nnf):
     transition_function = {}
     while s_before != s:
         diff = s.difference(s_before)
-        print(diff)
         s_before = s.copy()
         for state in diff:
             if state != TRUE and state != FALSE:
@@ -377,7 +370,6 @@ def ltlf_2_nfa(propositions, nnf):
                     new_state = delta(state, prop)
                     if new_state == TRUE and LAST not in prop:
                         exist_true_state = True
-                    print("New state: " + new_state)
                     tup = (state, prop)
                     if OR_STATE_SEPARATOR in new_state:               # is an or of states
                         split = new_state.split(OR_STATE_SEPARATOR)
@@ -387,15 +379,6 @@ def ltlf_2_nfa(propositions, nnf):
                     elif new_state not in s:
                         s.add(new_state)
                     transition_function[tup] = new_state
-        print(s)
-        print(s_before)
-    for key in transition_function.keys():
-        state = key[0]
-        fluents = key[1]
-        print("State \t\t" + str(state))
-        print("Fluents \t" + str(fluents))
-        print("New State \t" + transition_function[key] + "\n")
-    print(s)
     return s, transition_function, exist_true_state
 
 
@@ -447,7 +430,7 @@ def print_nfa(s0, s, transition_function):
         fluents = key[1]
         print("\tState: " + state)
         print("\tFluents: " + str(fluents))
-        print("\tNew state: " + transition_function[key] + "\n")
+        print("\tNew states: {" + transition_function[key] + "}\n")
     print("\n----------------------------------------------\n")
 
 
@@ -490,13 +473,11 @@ def main():
     alphabet_file = sys.argv[1]
     ltlf_formula = input("Insert the LTLf formula\n")
     nnf = convert_to_nnf(ltlf_formula)
-    print(nnf)
 
     # This method is used for building the dictionary of subformulas (i.e. the cl of the AFW)
     # The dictionary cl will be used in the delta function for understanding what kind of formula is it and what
     # recursive rule it has to follow
     sigma(nnf, cl)
-    print("CL\n" + str(cl))
     with codecs.open(alphabet_file, 'r') as file_handle:
         for line in file_handle:
             line = line.replace("\n", "")

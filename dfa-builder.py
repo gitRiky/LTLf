@@ -265,7 +265,6 @@ def put_neg_inside(subformula):
     left_part = ""
     right_part = ""
     split = subformula.split()
-    print(split)
     if len(split) >= 2:
         if split[0] == NOT and split[1] == "(":
             # NOT before parenthesis, return the formula without the not
@@ -276,12 +275,10 @@ def put_neg_inside(subformula):
                 left_part += pointer[0] + " " + right_part
                 right_part = ""
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
             elif (parenthesis <= pointer[1]) and (has_less_priority(elem, pointer[0])):
                 left_part += pointer[0] + " " + right_part
                 right_part = ""
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
             else:
                 right_part += elem + " "
         else:
@@ -318,7 +315,6 @@ def put_neg_inside(subformula):
 # the negation inside the subformula
 def convert_to_nnf(ltlf_formula):
     split = ltlf_formula.replace("(", "( ").replace(")", " )").split()
-    print(split)
     counter = 0
     parenthesis = 0
     found_not = False
@@ -330,13 +326,11 @@ def convert_to_nnf(ltlf_formula):
     for elem in split:
         if found_not:
             found_not = False
-            print("Not has been found")
             if elem in [NEXT, WEAK_NEXT, EVENTUALLY, GLOBALLY]:
                 parse_subformula = True
                 operator = elem
                 continue
             elif elem == "(":
-                print("Is subformula")
                 parse_subformula = True
             else:       # literal
                 left_part += NOT + " " + elem + " "
@@ -397,7 +391,6 @@ def ltlf_2_dfa(propositions, nnf):
             first = False
         else:
             diff = s.difference(s_before)
-        print(diff)
         s_before = s.copy()
         for s_state in diff:
             state = ""
@@ -437,26 +430,17 @@ def ltlf_2_dfa(propositions, nnf):
                         else:
                             new_state += OR_STATE_SEPARATOR + elem
                     transition_function[tup] = new_state
-            print(s)
-            print(s_before)
     for key in transition_function.keys():
         state = key[0]
         fluents = key[1]
-        print("State \t\t" + str(state))
-        print("Fluents \t" + str(fluents))
-        print("New State \t" + transition_function[key] + "\n")
-
-    print(s)
     set_s = set([])
     for states_set in s:
         state = ""
         for elem in states_set:
-            print("Elem: " + elem)
-            if len(state) > 1:
-                state += OR_STATE_SEPARATOR + elem
-            else:
+            if len(state) < 1:
                 state += elem
-            print("State: " + state)
+            else:
+                state += OR_STATE_SEPARATOR + elem
         set_s.add(state)
     set_sf = set([])
     for states_set in sf:
@@ -470,7 +454,7 @@ def ltlf_2_dfa(propositions, nnf):
     return set_s, transition_function, set_sf
 
 
-def print_nfa(s0, s, transition_function, sf):
+def print_dfa(s0, s, transition_function, sf):
     print("\n\n----------------------------------------------\n")
     print("Alphabet: " + str(alphabet) + "\n")
 
@@ -484,7 +468,7 @@ def print_nfa(s0, s, transition_function, sf):
             states += ",\n\t[" + state + "]"
     print(states + "}\n")
 
-    print("Initial state: " + s0 + "\n")
+    print("Initial state: [" + s0 + "]\n")
 
     f_states = "Final states: {"
     first = True
@@ -500,9 +484,9 @@ def print_nfa(s0, s, transition_function, sf):
     for key in transition_function.keys():
         state = key[0]
         fluents = key[1]
-        print("\tState: " + state)
+        print("\tState: [" + state + "]")
         print("\tFluents: " + str(fluents))
-        print("\tNew state: " + transition_function[key] + "\n")
+        print("\tNew state: [" + transition_function[key] + "]\n")
     print("\n----------------------------------------------\n")
 
 
@@ -510,7 +494,7 @@ def run_nfa(sequence, s0, transition_function, sf):
     current_state = s0
     for elem in sequence:
         new_state = transition_function[(current_state, elem)]
-        print("State: {" + current_state + "}\nFluents: " + str(elem) + "\nNew state: {" + new_state + "}\n")
+        print("State: [" + current_state + "]\nFluents: " + str(elem) + "\nNew state: [" + new_state + "]\n")
         if new_state == TRUE:
             return True
         if new_state == FALSE:
@@ -528,7 +512,6 @@ def main():
     alphabet_file = sys.argv[1]
     ltlf_formula = input("Insert the LTLf formula\n")
     nnf = convert_to_nnf(ltlf_formula)
-    print(nnf)
 
     # This method is used for building the dictionary of subformulas (i.e. the cl of the AFW)
     # The dictionary cl will be used in the delta function for understanding what kind of formula is it and what
@@ -540,7 +523,7 @@ def main():
             alphabet.append(line)
     create_proposition_combination(proposition_combination)
     s, transition_function, sf = ltlf_2_dfa(proposition_combination, nnf)
-    print_nfa(nnf, s, transition_function, sf)
+    print_dfa(nnf, s, transition_function, sf)
     done = False
     while not done:
         response = input("Do you want to provide a sequence of fluents for simulating a run? (y, n)\n")

@@ -65,40 +65,30 @@ def remove_useless_parenthesis(ltlf_formula):
             par += 1
         elif char == ")":
             par -= 1
-    if par != 0:
-        print("Formula to be adjusted: " + ltlf_formula)
     if par > 0:
         ltlf_formula = ltlf_formula[par*2:]
     elif par < 0:
         ltlf_formula = ltlf_formula[:par*2]
-    if par != 0:
-        print("Adjusted formula: " + ltlf_formula)
     return ltlf_formula
 
 
 def sigma(ltlf_formula, cl, literal=False):
     if remove_spaces(ltlf_formula) in cl.keys():                         # formula already in CL
-        print("Sub-formula " + str(ltlf_formula) + " already in Q")
         return
-    elif ltlf_formula[:1] == "(" and remove_spaces(ltlf_formula[2:len(ltlf_formula)-2]) in cl.keys():
-        print("Sub-formula " + str(ltlf_formula) + " already in Q")
+    if ltlf_formula[:1] == "(" and remove_spaces(ltlf_formula[2:len(ltlf_formula)-2]) in cl.keys():
         return
-    elif "(" + remove_spaces(ltlf_formula) + ")" in cl.keys():
-        print("Sub-formula " + str(ltlf_formula) + " already in Q")
+    if "(" + remove_spaces(ltlf_formula) + ")" in cl.keys():
         return
     if literal:
         split = ltlf_formula.replace(" ", ",").replace("not,", "not ").split()
     else:
         split = ltlf_formula.split()
-    print(split)
     if len(split) == 1:                             # positive literal
-        print("I'm adding a positive literal " + ltlf_formula)
         cl[ltlf_formula] = LIT
         cl["not " + ltlf_formula] = LIT
         return
     elif len(split) == 2 and split[0] not in [GLOBALLY, EVENTUALLY, NEXT, WEAK_NEXT]:
         if split[0] == NOT:     # negative literal
-            print("I'm adding a negative literal " + ltlf_formula)
             cl[ltlf_formula] = LIT
             cl[ltlf_formula.replace("not ", "")] = LIT
             return
@@ -115,10 +105,8 @@ def sigma(ltlf_formula, cl, literal=False):
         elif elem in OPERATORS:
             if parenthesis < pointer[1]:
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
             elif (parenthesis <= pointer[1]) and (has_less_priority(elem, pointer[0])):
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
         count += 1
     operator = pointer[0]
     if operator == "":
@@ -172,7 +160,5 @@ def obtain_automaton_states(goal):
         else:
             automaton_states["q0"] = [key, cl[key]]
     for state in automaton_states.keys():
-        print("State " + state + ", Formula: " + automaton_states[state][0] +
-              ", Type: " + automaton_states[state][1])
         q.append(state)
     return automaton_states
