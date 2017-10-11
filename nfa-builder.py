@@ -175,7 +175,7 @@ def delta(state, action_effect):
             return d1 + OR_STATE_SEPARATOR + d2
         return d2 + AND_STATE_SEPARATOR + d3
     elif formula_type == WEAK_UNTIL:
-        alpha, beta = find_alpha(formula_type, state)
+        alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
         if d1 == FALSE:
             return FALSE
@@ -187,7 +187,17 @@ def delta(state, action_effect):
             return TRUE
         if d2 == FALSE and d3 == FALSE:
             return FALSE
-        return d2 + AND_STATE_SEPARATOR + d1 + OR_STATE_SEPARATOR + d2 + AND_STATE_SEPARATOR + d3
+        if d1 == TRUE:
+            if d2 == FALSE:
+                return d3
+            if d3 == FALSE:
+                return d2
+        else:
+            if d2 == FALSE:
+                return d1 + AND_STATE_SEPARATOR + d3
+            if d3 == FALSE:
+                return d1 + AND_STATE_SEPARATOR + d2
+        return d1 + AND_STATE_SEPARATOR + d2 + OR_STATE_SEPARATOR + d1 + AND_STATE_SEPARATOR + d3
     elif formula_type == AND:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(alpha, action_effect)

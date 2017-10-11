@@ -56,6 +56,7 @@ def find_alpha(formula_type, subformula):
 
 
 def delta(state, action_effect):
+    print("State: " + state)
     if OR_STATE_SEPARATOR in state:
         states_set = set([])
         for elem in state.split(OR_STATE_SEPARATOR):
@@ -201,7 +202,7 @@ def delta(state, action_effect):
             return d1 + OR_STATE_SEPARATOR + d2
         return d2 + AND_STATE_SEPARATOR + d3
     elif formula_type == WEAK_UNTIL:
-        alpha, beta = find_alpha(formula_type, state)
+        alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
         if d1 == FALSE:
             return FALSE
@@ -213,7 +214,17 @@ def delta(state, action_effect):
             return TRUE
         if d2 == FALSE and d3 == FALSE:
             return FALSE
-        return d2 + AND_STATE_SEPARATOR + d1 + OR_STATE_SEPARATOR + d2 + AND_STATE_SEPARATOR + d3
+        if d1 == TRUE:
+            if d2 == FALSE:
+                return d3
+            if d3 == FALSE:
+                return d2
+        else:
+            if d2 == FALSE:
+                return d1 + AND_STATE_SEPARATOR + d3
+            if d3 == FALSE:
+                return d1 + AND_STATE_SEPARATOR + d2
+        return d1 + AND_STATE_SEPARATOR + d2 + OR_STATE_SEPARATOR + d1 + AND_STATE_SEPARATOR + d3
     elif formula_type == AND:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(alpha, action_effect)
@@ -391,7 +402,7 @@ def ltlf_2_dfa(propositions, nnf):
                     last_fluent = prop + (LAST,)
                     new_state = delta(state, prop)
                     tup = (state, prop)
-                    if delta(state, last_fluent) == TRUE:
+                    if new_state != TRUE and delta(state, last_fluent) == TRUE:
                         new_state += OR_STATE_SEPARATOR + ENDED
                     if new_state not in s:
                         s.add(new_state)
