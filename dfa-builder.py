@@ -426,7 +426,16 @@ def ltlf_2_dfa(propositions, nnf):
                         s.add(state_set)
                     if ENDED in state_set and state_set not in sf:
                         sf.add(state_set)
+                    if TRUE in state_set and state_set not in sf:
+                        sf.add(state_set)
                     tup = (state, prop)
+                    first = True
+                    for elem in state_set:
+                        if first:
+                            first = False
+                            new_state = elem
+                        else:
+                            new_state += OR_STATE_SEPARATOR + elem
                     transition_function[tup] = new_state
             print(s)
             print(s_before)
@@ -438,7 +447,27 @@ def ltlf_2_dfa(propositions, nnf):
         print("New State \t" + transition_function[key] + "\n")
 
     print(s)
-    return s, transition_function, sf
+    set_s = set([])
+    for states_set in s:
+        state = ""
+        for elem in states_set:
+            print("Elem: " + elem)
+            if len(state) > 1:
+                state += OR_STATE_SEPARATOR + elem
+            else:
+                state += elem
+            print("State: " + state)
+        set_s.add(state)
+    set_sf = set([])
+    for states_set in sf:
+        state = ""
+        for elem in states_set:
+            if len(state) < 1:
+                state += elem
+            else:
+                state += OR_STATE_SEPARATOR + elem
+        set_sf.add(state)
+    return set_s, transition_function, set_sf
 
 
 def print_nfa(s0, s, transition_function, sf):
@@ -446,33 +475,25 @@ def print_nfa(s0, s, transition_function, sf):
     print("Alphabet: " + str(alphabet) + "\n")
 
     states = "States: {"
-    for state_set in s:
-        if states != "States: {":
-            states += ","
-        first = True
-        for state in state_set:
-            if first:
-                first = False
-                states += "[" + state
-            else:
-                states += OR_STATE_SEPARATOR + state
-        states += "]"
+    first = True
+    for state in s:
+        if first:
+            first = False
+            states += "[" + state + "]"
+        else:
+            states += ",\n\t[" + state + "]"
     print(states + "}\n")
 
     print("Initial state: " + s0 + "\n")
 
     f_states = "Final states: {"
-    for state_set in sf:
-        if f_states != "Final states: {":
-            f_states += ","
-        first = True
-        for state in state_set:
-            if first:
-                first = False
-                f_states += "[" + state
-            else:
-                f_states += OR_STATE_SEPARATOR + state
-        f_states += "]"
+    first = True
+    for state in sf:
+        if first:
+            first = False
+            f_states += "[" + state + "]"
+        else:
+            f_states += ",\n\t       [" + state + "]"
     print(f_states + "}\n")
 
     print("Transition function:")
