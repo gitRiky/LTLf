@@ -56,7 +56,6 @@ def find_alpha(formula_type, subformula):
 
 
 def delta(state, action_effect):
-    print("State: " + state)
     if OR_STATE_SEPARATOR in state:
         states_set = set([])
         for elem in state.split(OR_STATE_SEPARATOR):
@@ -66,9 +65,9 @@ def delta(state, action_effect):
                     return TRUE
                 if d != FALSE:
                     if OR_STATE_SEPARATOR in d:
-                        for elem in d.split(OR_STATE_SEPARATOR):
-                            if elem not in states_set:
-                                states_set.add(elem)
+                        for el in d.split(OR_STATE_SEPARATOR):
+                            if el not in states_set:
+                                states_set.add(el)
                     elif d not in states_set:
                         states_set.add(d)
         if len(states_set) < 1:
@@ -386,31 +385,51 @@ def create_proposition_combination(result):
 
 
 def ltlf_2_dfa(propositions, nnf):
-    s0 = nnf
+    s0 = frozenset([nnf])
     sf = set([])
     s_before = set([])
     s = {s0}
     transition_function = {}
-
+    first = True
     while s_before != s:
-        diff = s.difference(s_before)
+        if first:
+            diff = s.copy()
+            first = False
+        else:
+            diff = s.difference(s_before)
         print(diff)
         s_before = s.copy()
-        for state in diff:
-            if state != TRUE and state != FALSE:
+        for s_state in diff:
+            state = ""
+            first = True
+            for st in s_state:
+                if first:
+                    first = False
+                    state += st
+                else:
+                    state += OR_STATE_SEPARATOR + st
+            if state != TRUE and state != FALSE and state != ENDED:
                 for prop in propositions:
                     last_fluent = prop + (LAST,)
                     new_state = delta(state, prop)
-                    tup = (state, prop)
                     if new_state != TRUE and delta(state, last_fluent) == TRUE:
                         new_state += OR_STATE_SEPARATOR + ENDED
-                    if new_state not in s:
-                        s.add(new_state)
-                        if ENDED in new_state:
-                            sf.add(new_state)
+                    if OR_STATE_SEPARATOR in new_state:
+                        split = new_state.split(OR_STATE_SEPARATOR)
+                        state_list = []
+                        for elem in split:
+                            state_list.append(elem)
+                    else:
+                        state_list = [new_state]
+                    state_set = frozenset(state_list)
+                    if state_set not in s:
+                        s.add(state_set)
+                    if ENDED in state_set and state_set not in sf:
+                        sf.add(state_set)
+                    tup = (state, prop)
                     transition_function[tup] = new_state
-        print(s)
-        print(s_before)
+            print(s)
+            print(s_before)
     for key in transition_function.keys():
         state = key[0]
         fluents = key[1]
@@ -426,10 +445,36 @@ def print_nfa(s0, s, transition_function, sf):
     print("\n\n----------------------------------------------\n")
     print("Alphabet: " + str(alphabet) + "\n")
 
-    print("States: " + str(s) + "\n")
+    states = "States: {"
+    for state_set in s:
+        if states != "States: {":
+            states += ","
+        first = True
+        for state in state_set:
+            if first:
+                first = False
+                states += "[" + state
+            else:
+                states += OR_STATE_SEPARATOR + state
+        states += "]"
+    print(states + "}\n")
+
     print("Initial state: " + s0 + "\n")
 
-    print("Final states: " + str(sf) + "\n")
+    f_states = "Final states: {"
+    for state_set in sf:
+        if f_states != "Final states: {":
+            f_states += ","
+        first = True
+        for state in state_set:
+            if first:
+                first = False
+                f_states += "[" + state
+            else:
+                f_states += OR_STATE_SEPARATOR + state
+        f_states += "]"
+    print(f_states + "}\n")
+
     print("Transition function:")
     for key in transition_function.keys():
         state = key[0]
