@@ -430,9 +430,6 @@ def ltlf_2_dfa(propositions, nnf):
                         else:
                             new_state += OR_STATE_SEPARATOR + elem
                     transition_function[tup] = new_state
-    for key in transition_function.keys():
-        state = key[0]
-        fluents = key[1]
     set_s = set([])
     for states_set in s:
         state = ""

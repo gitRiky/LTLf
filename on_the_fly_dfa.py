@@ -59,7 +59,6 @@ def find_alpha(formula_type, subformula):
 # the negation inside the subformula
 def convert_to_nnf(ltlf_formula):
     split = ltlf_formula.replace("(", "( ").replace(")", " )").split()
-    print(split)
     counter = 0
     parenthesis = 0
     found_not = False
@@ -71,13 +70,11 @@ def convert_to_nnf(ltlf_formula):
     for elem in split:
         if found_not:
             found_not = False
-            print("Not has been found")
             if elem in [NEXT, WEAK_NEXT, EVENTUALLY, GLOBALLY]:
                 parse_subformula = True
                 operator = elem
                 continue
             elif elem == "(":
-                print("Is subformula")
                 parse_subformula = True
             else:       # literal
                 left_part += NOT + " " + elem + " "
@@ -126,7 +123,6 @@ def put_neg_inside(subformula):
     left_part = ""
     right_part = ""
     split = subformula.split()
-    print(split)
     if len(split) >= 2:
         if split[0] == NOT and split[1] == "(":
             # NOT before parenthesis, return the formula without the not
@@ -137,12 +133,10 @@ def put_neg_inside(subformula):
                 left_part += pointer[0] + " " + right_part
                 right_part = ""
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
             elif (parenthesis <= pointer[1]) and (has_less_priority(elem, pointer[0])):
                 left_part += pointer[0] + " " + right_part
                 right_part = ""
                 pointer = [elem, parenthesis, count]
-                print("Pointer: ", pointer)
             else:
                 right_part += elem + " "
         else:
@@ -175,6 +169,27 @@ def put_neg_inside(subformula):
 
 
 def delta(state, action_effect):
+    if OR_STATE_SEPARATOR in state:
+        states_set = set([])
+        for elem in state.split(OR_STATE_SEPARATOR):
+            if elem != ENDED:
+                d = delta(elem, action_effect)
+                if d == TRUE:                       # For the angelic non-determinism
+                    return TRUE
+                if d != FALSE:
+                    states_set.add(d)
+        if len(states_set) < 1:
+            return FALSE
+        else:
+            new_state = ""
+            first = True
+            for s in states_set:
+                if first:
+                    first = False
+                    new_state += s
+                else:
+                    new_state += OR_STATE_SEPARATOR + s
+            return new_state
     if AND_STATE_SEPARATOR in state:
         result_set = []
         split = state.split(AND_STATE_SEPARATOR)
@@ -206,26 +221,6 @@ def delta(state, action_effect):
                 if append:
                     return_value += AND_STATE_SEPARATOR + elem
             return return_value
-    if OR_STATE_SEPARATOR in state:
-        states_set = set([])
-        for elem in state.split(OR_STATE_SEPARATOR):
-            d = delta(elem, action_effect)
-            if d == TRUE:                       # For the angelic non-determinism
-                return TRUE
-            if d != FALSE:
-                states_set.add(d)
-        if len(states_set) < 1:
-            return FALSE
-        else:
-            new_state = ""
-            first = True
-            for s in states_set:
-                if first:
-                    first = False
-                    new_state += s
-                else:
-                    new_state += OR_STATE_SEPARATOR + s
-            return new_state
     formula_type = cl[state]
     if formula_type == LIT:
         split = state.replace(" ", ",").replace("not,", "not ").split()
@@ -280,7 +275,14 @@ def delta(state, action_effect):
             return d2
         if d2 == TRUE:
             return d1
-        return d1 + AND_STATE_SEPARATOR + d2
+        if OR_STATE_SEPARATOR in d1:
+            split = d1.split(OR_STATE_SEPARATOR)
+            return_value = split[0] + AND_STATE_SEPARATOR + d2
+            for state in split[1:]:
+                return_value += OR_STATE_SEPARATOR + state + AND_STATE_SEPARATOR + d2
+            return return_value
+        else:
+            return d1 + AND_STATE_SEPARATOR + d2
     elif formula_type == UNTIL:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
@@ -307,7 +309,7 @@ def delta(state, action_effect):
             return d1 + OR_STATE_SEPARATOR + d2
         return d2 + AND_STATE_SEPARATOR + d3
     elif formula_type == WEAK_UNTIL:
-        alpha, beta = find_alpha(formula_type, state)
+        alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
         if d1 == FALSE:
             return FALSE
@@ -319,7 +321,16 @@ def delta(state, action_effect):
             return TRUE
         if d2 == FALSE and d3 == FALSE:
             return FALSE
-        return d2 + AND_STATE_SEPARATOR + d1 + OR_STATE_SEPARATOR + d2 + AND_STATE_SEPARATOR + d3
+        if d1 == TRUE:
+            if d2 == FALSE:
+                return d3
+            if d3 == FALSE:
+                return d2
+        else:
+            if d2 == FALSE:
+                return d1 + AND_STATE_SEPARATOR + d3
+            if d3 == FALSE:
+                return d1 + AND_STATE_SEPARATOR + d2
     elif formula_type == AND:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(alpha, action_effect)
@@ -353,23 +364,23 @@ def delta(state, action_effect):
 
 
 def print_state(current_state, fluents, new_state):
-    print("\tState: " + current_state)
+    print("\tState: [" + current_state + "]")
     print("\tFluents: " + str(fluents))
-    print("\tNew state: " + new_state + "\n")
+    print("\tNew state: [" + new_state + "]\n")
 
 
 def run_on_the_fly_dfa(s0, trace):
     current_state = s0
     for fluents in trace:
-        print(str(fluents))
         fluents_last = fluents + (LAST,)
-        next_state = delta(current_state, fluents)
-        if next_state != TRUE and delta(current_state, fluents_last) == TRUE:
-            if next_state != "":
-                next_state += OR_STATE_SEPARATOR + ENDED
-            else:
-                next_state = ENDED
-        print_state(current_state, fluents, next_state)
+        if current_state != ENDED:
+            next_state = delta(current_state, fluents)
+            if next_state != TRUE and delta(current_state, fluents_last) == TRUE:
+                if next_state != "":
+                    next_state += OR_STATE_SEPARATOR + ENDED
+                else:
+                    next_state = ENDED
+            print_state(current_state, fluents, next_state)
         if next_state == TRUE:
             return True
         if next_state == FALSE:
@@ -387,13 +398,11 @@ def main():
     trace_file_name = sys.argv[1]
     ltlf_formula = input("Insert the LTLf formula\n")
     nnf = convert_to_nnf(ltlf_formula)
-    print(nnf)
 
     # This method is used for building the dictionary of subformulas (i.e. the cl of the AFW)
     # The dictionary cl will be used in the delta function for understanding what kind of formula is it and what
     # recursive rule it has to follow
     sigma(nnf, cl)
-    print(cl)
     trace = []
     with codecs.open(trace_file_name, 'r') as file_handle:
         for line in file_handle:
