@@ -1,27 +1,6 @@
 import itertools
-import sys
 import codecs
-from LTLf_translator import remove_spaces, remove_useless_parenthesis, populate_subformula, sigma, has_less_priority
-
-FALSE = "false"
-TRUE = "true"
-LAST = "last"
-ENDED = "ended"
-LIT = "lit"
-NOT = "not"
-AND = "and"
-OR = "or"
-NEXT = "X"
-WEAK_NEXT = "WX"
-UNTIL = "U"
-WEAK_UNTIL = "R"
-GLOBALLY = "G"
-EVENTUALLY = "F"
-
-AND_STATE_SEPARATOR = " - "
-OR_STATE_SEPARATOR = ", "
-
-OPERATORS = [AND, OR, NEXT, WEAK_NEXT, UNTIL, GLOBALLY, EVENTUALLY, WEAK_UNTIL]
+from utility import *
 
 alphabet = []
 cl = {}
@@ -29,39 +8,15 @@ proposition_combination = []
 last_pointer = []
 
 
-def find_alpha_beta(subformula, formula_type):
-    split = subformula.replace("(", "( ").replace(")", " )").split()
-    parenthesis = 0
-    counter = 0
-    pointer = [0, sys.maxsize]  # pointer = (position of the operator, number of parenthesis)
-    for elem in split:
-        if elem == "(":
-            parenthesis += 1
-        elif elem == ")":
-            parenthesis -= 1
-        elif elem == formula_type and parenthesis < pointer[1]:
-            pointer = [counter, parenthesis]
-        counter += 1
-    alpha = remove_spaces(populate_subformula(split, 0, pointer[0]))
-    beta = remove_spaces(populate_subformula(split, pointer[0] + 1, len(split)))
-    if formula_type == UNTIL or formula_type == WEAK_UNTIL:
-        alpha = alpha[1:len(alpha)-1]
-        beta = beta[1:len(beta)-1]
-    return alpha, beta
-
-
-def find_alpha(formula_type, subformula):
-    alpha = subformula[len(formula_type)+2:len(subformula)-1]
-    return alpha
-
-
 def delta(state, action_effect):
     if AND_STATE_SEPARATOR in state:
+        print(state)
+        print(str(action_effect))
         result_set = []
         split = state.split(AND_STATE_SEPARATOR)
-
         # This portion of code is used in order to implement the 'and' between n delta functions
         for elem in split:
+            print(elem)
             d = delta(elem, action_effect)
             if d == FALSE:
                 return FALSE
@@ -72,21 +27,23 @@ def delta(state, action_effect):
                         append = False
                 if append:
                     result_set.append(d)
+            print(str(result_set))
         if len(result_set) < 1:
             return TRUE
         else:
-            return_value = str(result_set[0])
-            for i in range(1, len(result_set)):
-                append = True
-                for j in range(len(result_set)):
-                    if i != j:
-                        to_put = result_set[i]
-                        if to_put == result_set[j] or to_put + AND_STATE_SEPARATOR in result_set[j]:
-                            append = False
-                            break
-                if append:
-                    return_value += AND_STATE_SEPARATOR + elem
-            return return_value
+            return compute_tf_and(result_set)
+            # return_value = str(result_set[0])
+            # for i in range(1, len(result_set)):
+            #     append = True
+            #     for j in range(len(result_set)):
+            #         if i != j:
+            #             to_put = result_set[i]
+            #             if to_put == result_set[j] or to_put + AND_STATE_SEPARATOR in result_set[j]:
+            #                 append = False
+            #                 break
+            #     if append:
+            #         return_value += AND_STATE_SEPARATOR + elem
+            # return return_value
     formula_type = cl[state]
     if formula_type == LIT:
         split = state.replace(" ", ",").replace("not,", "not ").split()
@@ -173,7 +130,7 @@ def delta(state, action_effect):
             return d1 + OR_STATE_SEPARATOR + d3
         if d3 == TRUE:
             return d1 + OR_STATE_SEPARATOR + d2
-        return d2 + AND_STATE_SEPARATOR + d3
+        return d1 + OR_STATE_SEPARATOR + d2 + AND_STATE_SEPARATOR + d3
     elif formula_type == WEAK_UNTIL:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
@@ -230,120 +187,6 @@ def delta(state, action_effect):
         return d1 + OR_STATE_SEPARATOR + d2
 
 
-# The number of recursive calls is linear w.r.t. the size of the subformula. A subformula is not processed twice
-# i.e. linear number of recursive calls w.r.t. the formula itself (in the worst case of course)
-def put_neg_inside(subformula):
-    pointer = ["", sys.maxsize, 0]
-    count = 0
-    parenthesis = 0
-    left_part = ""
-    right_part = ""
-    split = subformula.split()
-    if len(split) >= 2:
-        if split[0] == NOT and split[1] == "(":
-            # NOT before parenthesis, return the formula without the not
-            return subformula[5:]
-    for elem in split:
-        if elem in OPERATORS:
-            if parenthesis < pointer[1]:
-                left_part += pointer[0] + " " + right_part
-                right_part = ""
-                pointer = [elem, parenthesis, count]
-            elif (parenthesis <= pointer[1]) and (has_less_priority(elem, pointer[0])):
-                left_part += pointer[0] + " " + right_part
-                right_part = ""
-                pointer = [elem, parenthesis, count]
-            else:
-                right_part += elem + " "
-        else:
-            right_part += elem + " "
-            if elem == "(":
-                parenthesis += 1
-            if elem == ")":
-                parenthesis -= 1
-        count += 1
-    left_part = remove_useless_parenthesis(left_part)
-    right_part = remove_useless_parenthesis(right_part)
-    operator = pointer[0]
-    if operator == "":
-        if split[0] == NOT:
-            return split[1]
-        else:
-            return NOT + " " + split[0]
-    if operator == AND:
-        return put_neg_inside(left_part) + " or " + put_neg_inside(right_part)
-    if operator == OR:
-        return put_neg_inside(left_part) + " and " + put_neg_inside(right_part)
-    elif operator == NEXT:
-        return NEXT + " (" + put_neg_inside(right_part[1:len(right_part)-1]) + ")"
-    elif operator == WEAK_NEXT:
-        return NEXT + " (" + put_neg_inside(right_part[1:len(right_part)-1]) + ")"
-    elif operator == EVENTUALLY:
-        return GLOBALLY + " (" + put_neg_inside(right_part[1:len(right_part)-1]) + ")"
-    elif operator == GLOBALLY:
-        return EVENTUALLY + " (" + put_neg_inside(right_part[1:len(right_part) - 1]) + ")"
-
-
-# This method linearly scans the formula with the goal of finding external negation.
-# When it finds one, it calls an auxiliary recursive method put_neg_inside(subformula) which is used for putting
-# the negation inside the subformula
-def convert_to_nnf(ltlf_formula):
-    split = ltlf_formula.replace("(", "( ").replace(")", " )").split()
-    counter = 0
-    parenthesis = 0
-    found_not = False
-    parse_subformula = False
-    subformula = ""
-    new_formula = ""
-    operator = ""
-    left_part = ""
-    for elem in split:
-        if found_not:
-            found_not = False
-            if elem in [NEXT, WEAK_NEXT, EVENTUALLY, GLOBALLY]:
-                parse_subformula = True
-                operator = elem
-                continue
-            elif elem == "(":
-                parse_subformula = True
-            else:       # literal
-                left_part += NOT + " " + elem + " "
-                continue
-        if parse_subformula:
-            if elem == "(":
-                parenthesis += 1
-            elif elem == ")":
-                parenthesis -= 1
-            subformula += elem + " "
-            if parenthesis == 0:
-                subformula = subformula[1:len(subformula)-2]
-                if new_formula != "":
-                    new_formula += " "
-                if operator == NEXT or operator == WEAK_NEXT:
-                    new_formula += left_part + NEXT + " (" + put_neg_inside(subformula) + ")"
-                elif operator == EVENTUALLY:
-                    new_formula += left_part + GLOBALLY + " (" + put_neg_inside(subformula) + ")"
-                elif operator == GLOBALLY:
-                    new_formula += left_part + EVENTUALLY + " (" + put_neg_inside(subformula) + ")"
-                else:
-                    new_formula += left_part + put_neg_inside(subformula)
-                subformula = ""
-                parse_subformula = False
-                left_part = ""
-        elif elem == "not":
-            found_not = True
-        else:
-            left_part += elem + " "
-        counter += 1
-    if new_formula == "":
-        new_formula = left_part
-    else:
-        new_formula += " " + left_part
-    if new_formula[len(new_formula)-1] == " ":
-        new_formula = new_formula[:len(new_formula)-1]
-    return remove_spaces(new_formula)
-
-
 # Used for obtaining all the possible combinations of fluents
 def create_proposition_combination(result):
     for i in range(len(alphabet)+1):
@@ -355,21 +198,25 @@ def create_proposition_combination(result):
 # This is the real nfa builder method: for each fluents combination, it applies the delta for each state until
 # no more states are added. It returns the set of states s and the transition function
 def ltlf_2_nfa(propositions, nnf):
-    exist_true_state = False
     s0 = nnf
-    sf = FALSE
-    s_before = {sf}
-    s = {s0, sf}
+    s_before = set([])
+    s = {s0}
     transition_function = {}
-    while s_before != s:
-        diff = s.difference(s_before)
+    first = True
+    while s_before != s:  # Until we stop adding states
+        if first:
+            diff = s.copy()
+            first = False
+        else:
+            diff = s.difference(s_before)
+
         s_before = s.copy()
         for state in diff:
-            if state != TRUE and state != FALSE:
+            if state != TRUE and state != FALSE and state != ENDED:
                 for prop in propositions:
                     new_state = delta(state, prop)
-                    if new_state == TRUE and LAST not in prop:
-                        exist_true_state = True
+                    print("Fluents: " + str(prop))
+                    print("Delta result: " + new_state + "\n")
                     tup = (state, prop)
                     if OR_STATE_SEPARATOR in new_state:               # is an or of states
                         split = new_state.split(OR_STATE_SEPARATOR)
@@ -379,22 +226,34 @@ def ltlf_2_nfa(propositions, nnf):
                     elif new_state not in s:
                         s.add(new_state)
                     transition_function[tup] = new_state
-    return s, transition_function, exist_true_state
+                    if FALSE in new_state:
+                        print("State: " + state + ", new state: " + new_state)
+    return s, transition_function
 
 
+# This method is used for removing the special proposition 'last' from the sequence of fluents
 def remove_last(transition_function):
     exist_ended_state = False
+    exist_false_state = False
+    exist_true_state = False
     new_transition_function = {}
     for key in transition_function.keys():
         fluents = key[1]
         if LAST not in fluents:
+            if transition_function[key] == FALSE:
+                exist_false_state = True
+            elif transition_function[key] == TRUE:
+                exist_true_state = True
+            # We copy the transition function value but we may have already the ended state, so if we have it
+            # we add the new_state with the OR_STATE_SEPARATOR, otherwise not
             if key in new_transition_function.keys() and transition_function[key] != TRUE:
                 new_transition_function[key] = new_transition_function[key] + \
                                                OR_STATE_SEPARATOR + transition_function[key]
+                exist_ended_state = True
             else:
                 new_transition_function[key] = transition_function[key]
         elif transition_function[key] == TRUE:
-            exist_ended_state = True
+            # Here we have to add the ended state
             new_tuple = ()
             state = key[0]
             for elem in fluents:
@@ -404,10 +263,13 @@ def remove_last(transition_function):
             if transition_function[new_key] == TRUE:
                 new_transition_function[new_key] = TRUE
             elif new_key in new_transition_function.keys():
+                # same stuff as above
+                exist_ended_state = True
                 new_transition_function[new_key] = new_transition_function[new_key] + OR_STATE_SEPARATOR + ENDED
             else:
                 new_transition_function[new_key] = ENDED
-    return new_transition_function, exist_ended_state
+                exist_ended_state = True
+    return new_transition_function, exist_ended_state, exist_false_state, exist_true_state
 
 
 def print_nfa(s0, s, transition_function):
@@ -440,22 +302,33 @@ def run_nfa(sequence, s0, transition_function):
         if OR_STATE_SEPARATOR in current_state:
             split = current_state.split(OR_STATE_SEPARATOR)
             new_state = ""
-            for state in split:
-                if state != ENDED:
-                    n_state = transition_function[(state, elem)]
+            new_states = set([])
+            for c_state in split:
+                if c_state != ENDED:
+                    n_state = transition_function[(c_state, elem)]
                     if n_state == TRUE:
                         new_state = TRUE
                         break
                     if n_state != FALSE:
-                        if len(new_state) < 1:
-                            new_state += n_state
-                        else:
-                            new_state += OR_STATE_SEPARATOR + n_state
+                        if OR_STATE_SEPARATOR in n_state:
+                            for ns in n_state.split(OR_STATE_SEPARATOR):
+                                if ns not in new_states:
+                                    new_states.add(ns)
+                                    if len(new_states) == 1:
+                                        new_state = ns
+                                    else:
+                                        new_state += OR_STATE_SEPARATOR + ns
+                        elif n_state not in new_states:
+                            new_states.add(n_state)
+                            if len(new_states) == 1:
+                                new_state = n_state
+                            else:
+                                new_state += OR_STATE_SEPARATOR + n_state
             if new_state == "":
                 new_state = FALSE
         else:
             new_state = transition_function[(current_state, elem)]
-        print("State: " + current_state + "\nFluents: " + str(elem) + "\nNew state: " + new_state + "\n")
+        print("States: {" + current_state + "}\nFluents: " + str(elem) + "\nNew states: {" + new_state + "}\n")
         if new_state == TRUE:
             return True
         if new_state == FALSE:
@@ -484,12 +357,14 @@ def main():
             alphabet.append(line)
     alphabet.append(LAST)
     create_proposition_combination(proposition_combination)
-    s, transition_function, exist_true_state = ltlf_2_nfa(proposition_combination, nnf)
-    new_transition_function, exist_ended_state = remove_last(transition_function)
-    if not exist_true_state:
+    s, transition_function = ltlf_2_nfa(proposition_combination, nnf)
+    new_transition_function, exist_ended_state, exist_false_state, exist_true_state = remove_last(transition_function)
+    if not exist_true_state and TRUE in s:
         s.remove(TRUE)
     if exist_ended_state:
         s.add(ENDED)
+    if not exist_false_state and FALSE in s:
+        s.remove(FALSE)
     print_nfa(nnf, s, new_transition_function)
     done = False
     while not done:
