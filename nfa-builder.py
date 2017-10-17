@@ -214,18 +214,27 @@ def ltlf_2_nfa(propositions, nnf):
                     tup = (state, prop)
                     if OR_STATE_SEPARATOR in new_state:               # is an or of states
                         split = new_state.split(OR_STATE_SEPARATOR)
+                        new_state = ""
                         for elem in split:
                             if AND_STATE_SEPARATOR in elem:
                                 and_state = sort_and_state(elem)
+                                if len(new_state) < 1:
+                                    new_state = and_state
+                                else:
+                                    new_state += OR_STATE_SEPARATOR + and_state
                                 if and_state not in s:
                                     s.add(and_state)
                             else:
+                                if len(new_state) < 1:
+                                    new_state = elem
+                                else:
+                                    new_state += OR_STATE_SEPARATOR + elem
                                 if elem not in s:
                                     s.add(elem)
                     elif AND_STATE_SEPARATOR in new_state:
-                        and_state = sort_and_state(new_state)
-                        if and_state not in s:
-                            s.add(and_state)
+                        new_state = sort_and_state(new_state)
+                        if new_state not in s:
+                            s.add(new_state)
                     elif new_state not in s:
                         s.add(new_state)
                     transition_function[tup] = new_state
