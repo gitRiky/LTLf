@@ -10,13 +10,10 @@ last_pointer = []
 
 def delta(state, action_effect):
     if AND_STATE_SEPARATOR in state:
-        print(state)
-        print(str(action_effect))
         result_set = []
         split = state.split(AND_STATE_SEPARATOR)
         # This portion of code is used in order to implement the 'and' between n delta functions
         for elem in split:
-            print(elem)
             d = delta(elem, action_effect)
             if d == FALSE:
                 return FALSE
@@ -27,23 +24,11 @@ def delta(state, action_effect):
                         append = False
                 if append:
                     result_set.append(d)
-            print(str(result_set))
         if len(result_set) < 1:
             return TRUE
         else:
+            # Auxiliary method for computing the and between delta, avoiding duplicates
             return compute_tf_and(result_set)
-            # return_value = str(result_set[0])
-            # for i in range(1, len(result_set)):
-            #     append = True
-            #     for j in range(len(result_set)):
-            #         if i != j:
-            #             to_put = result_set[i]
-            #             if to_put == result_set[j] or to_put + AND_STATE_SEPARATOR in result_set[j]:
-            #                 append = False
-            #                 break
-            #     if append:
-            #         return_value += AND_STATE_SEPARATOR + elem
-            # return return_value
     formula_type = cl[state]
     if formula_type == LIT:
         split = state.replace(" ", ",").replace("not,", "not ").split()
@@ -195,6 +180,17 @@ def create_proposition_combination(result):
             result.append(tup)
 
 
+def sort_and_state(elem):
+    and_state_list = sorted(elem.split(AND_STATE_SEPARATOR))
+    and_state = ""
+    for sub_elem in and_state_list:
+        if len(and_state) < 1:
+            and_state = sub_elem
+        else:
+            and_state += AND_STATE_SEPARATOR + sub_elem
+    return and_state
+
+
 # This is the real nfa builder method: for each fluents combination, it applies the delta for each state until
 # no more states are added. It returns the set of states s and the transition function
 def ltlf_2_nfa(propositions, nnf):
@@ -215,14 +211,21 @@ def ltlf_2_nfa(propositions, nnf):
             if state != TRUE and state != FALSE and state != ENDED:
                 for prop in propositions:
                     new_state = delta(state, prop)
-                    print("Fluents: " + str(prop))
-                    print("Delta result: " + new_state + "\n")
                     tup = (state, prop)
                     if OR_STATE_SEPARATOR in new_state:               # is an or of states
                         split = new_state.split(OR_STATE_SEPARATOR)
                         for elem in split:
-                            if elem not in s:
-                                s.add(elem)
+                            if AND_STATE_SEPARATOR in elem:
+                                and_state = sort_and_state(elem)
+                                if and_state not in s:
+                                    s.add(and_state)
+                            else:
+                                if elem not in s:
+                                    s.add(elem)
+                    elif AND_STATE_SEPARATOR in new_state:
+                        and_state = sort_and_state(new_state)
+                        if and_state not in s:
+                            s.add(and_state)
                     elif new_state not in s:
                         s.add(new_state)
                     transition_function[tup] = new_state

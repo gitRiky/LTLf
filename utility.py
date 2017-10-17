@@ -287,7 +287,6 @@ def has_less_priority(op1, op2):
 
 def aux(sub_elem, sub_elem2, rs):
     entry = set([])
-    print("Subelem2: " + sub_elem2)
     if AND_STATE_SEPARATOR in sub_elem:
         for s_e in sub_elem.split(AND_STATE_SEPARATOR):
             if s_e != sub_elem2 and s_e + AND_STATE_SEPARATOR not in sub_elem2 and \
@@ -302,9 +301,7 @@ def aux(sub_elem, sub_elem2, rs):
             entry.add(e)
     else:
         entry.add(sub_elem2)
-    print("Entry: " + str(entry))
     rs.add(frozenset(entry))
-    print(str(rs))
 
 
 def compute_tf_and(input_set):
@@ -335,18 +332,14 @@ def compute_tf_and(input_set):
                 else:
                     elem += OR_STATE_SEPARATOR + fs_entry
             rs.clear()
-        print("Elem: " + str(elem))
         if OR_STATE_SEPARATOR in elem:
             for sub_elem in elem.split(OR_STATE_SEPARATOR):
-                print("Subelem: " + sub_elem)
                 elem2 = input_set[i+1]
-                print("Elem2: " + elem2)
                 if OR_STATE_SEPARATOR in elem2:
                     for sub_elem2 in elem2.split(OR_STATE_SEPARATOR):
                         aux(sub_elem, sub_elem2, rs)
         else:
             elem2 = input_set[i + 1]
-            print("Elem2: " + elem2)
             if OR_STATE_SEPARATOR in elem2:
                 for sub_elem2 in elem2.split(OR_STATE_SEPARATOR):
                     aux(elem, sub_elem2, rs)
@@ -355,6 +348,9 @@ def compute_tf_and(input_set):
         i += 1
     result = ""
     for fs in rs:
+        # The result has to be sorted in order to avoid key error raised by inverted order of the states,
+        # e.g. F (a) - G (a) == G (a) - F (a), but in the dictionary the first one is stored. Sorting we
+        # avoid this possible scenario
         sorted_list = sorted(fs)
         f_entry = ""
         for s in sorted_list:
@@ -366,9 +362,6 @@ def compute_tf_and(input_set):
             result = f_entry
         else:
             result += OR_STATE_SEPARATOR + f_entry
-    if result == "":
-        print("VUOTOOOOOOOOOOO")
-    print(result)
     return result
 
 
