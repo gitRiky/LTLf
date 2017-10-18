@@ -1,174 +1,15 @@
-from LTLf_translator import sigma, remove_useless_parenthesis, remove_spaces, has_less_priority, populate_subformula
-
-
-import sys
 import codecs
-
-FALSE = "false"
-TRUE = "true"
-LAST = "last"
-ENDED = "ended"
-LIT = "lit"
-NOT = "not"
-AND = "and"
-OR = "or"
-NEXT = "X"
-WEAK_NEXT = "WX"
-UNTIL = "U"
-WEAK_UNTIL = "R"
-GLOBALLY = "G"
-EVENTUALLY = "F"
-
-OPERATORS = [AND, OR, NEXT, WEAK_NEXT, UNTIL, GLOBALLY, EVENTUALLY, WEAK_UNTIL]
-
-AND_STATE_SEPARATOR = " - "
-OR_STATE_SEPARATOR = ", "
-
+from utility import *
 
 cl = {}
 
 
-def find_alpha_beta(subformula, formula_type):
-    split = subformula.replace("(", "( ").replace(")", " )").split()
-    parenthesis = 0
-    counter = 0
-    pointer = [0, sys.maxsize]  # pointer = (position of the operator, number of parenthesis)
-    for elem in split:
-        if elem == "(":
-            parenthesis += 1
-        elif elem == ")":
-            parenthesis -= 1
-        elif elem == formula_type and parenthesis < pointer[1]:
-            pointer = [counter, parenthesis]
-        counter += 1
-    alpha = remove_spaces(populate_subformula(split, 0, pointer[0]))
-    beta = remove_spaces(populate_subformula(split, pointer[0] + 1, len(split)))
-    if formula_type == UNTIL or formula_type == WEAK_UNTIL:
-        alpha = alpha[1:len(alpha)-1]
-        beta = beta[1:len(beta)-1]
-    return alpha, beta
-
-
-def find_alpha(formula_type, subformula):
-    alpha = subformula[len(formula_type)+2:len(subformula)-1]
-    return alpha
-
-
-# This method linearly scans the formula with the goal of finding external negation.
-# When it finds one, it calls an auxiliary recursive method put_neg_inside(subformula) which is used for putting
-# the negation inside the subformula
-def convert_to_nnf(ltlf_formula):
-    split = ltlf_formula.replace("(", "( ").replace(")", " )").split()
-    counter = 0
-    parenthesis = 0
-    found_not = False
-    parse_subformula = False
-    subformula = ""
-    new_formula = ""
-    operator = ""
-    left_part = ""
-    for elem in split:
-        if found_not:
-            found_not = False
-            if elem in [NEXT, WEAK_NEXT, EVENTUALLY, GLOBALLY]:
-                parse_subformula = True
-                operator = elem
-                continue
-            elif elem == "(":
-                parse_subformula = True
-            else:       # literal
-                left_part += NOT + " " + elem + " "
-                continue
-        if parse_subformula:
-            if elem == "(":
-                parenthesis += 1
-            elif elem == ")":
-                parenthesis -= 1
-            subformula += elem + " "
-            if parenthesis == 0:
-                subformula = subformula[1:len(subformula)-2]
-                if new_formula != "":
-                    new_formula += " "
-                if operator == NEXT or operator == WEAK_NEXT:
-                    new_formula += left_part + NEXT + " (" + put_neg_inside(subformula) + ")"
-                elif operator == EVENTUALLY:
-                    new_formula += left_part + GLOBALLY + " (" + put_neg_inside(subformula) + ")"
-                elif operator == GLOBALLY:
-                    new_formula += left_part + EVENTUALLY + " (" + put_neg_inside(subformula) + ")"
-                else:
-                    new_formula += left_part + put_neg_inside(subformula)
-                subformula = ""
-                parse_subformula = False
-                left_part = ""
-        elif elem == "not":
-            found_not = True
-        else:
-            left_part += elem + " "
-        counter += 1
-    if new_formula == "":
-        new_formula = left_part
-    else:
-        new_formula += " " + left_part
-    if new_formula[len(new_formula)-1] == " ":
-        new_formula = new_formula[:len(new_formula)-1]
-    return remove_spaces(new_formula)
-
-
-# The number of recursive calls is linear w.r.t. the size of the subformula. A subformula is not processed twice
-# i.e. linear number of recursive calls w.r.t. the formula itself (in the worst case of course)
-def put_neg_inside(subformula):
-    pointer = ["", sys.maxsize, 0]
-    count = 0
-    parenthesis = 0
-    left_part = ""
-    right_part = ""
-    split = subformula.split()
-    if len(split) >= 2:
-        if split[0] == NOT and split[1] == "(":
-            # NOT before parenthesis, return the formula without the not
-            return subformula[5:]
-    for elem in split:
-        if elem in OPERATORS:
-            if parenthesis < pointer[1]:
-                left_part += pointer[0] + " " + right_part
-                right_part = ""
-                pointer = [elem, parenthesis, count]
-            elif (parenthesis <= pointer[1]) and (has_less_priority(elem, pointer[0])):
-                left_part += pointer[0] + " " + right_part
-                right_part = ""
-                pointer = [elem, parenthesis, count]
-            else:
-                right_part += elem + " "
-        else:
-            right_part += elem + " "
-            if elem == "(":
-                parenthesis += 1
-            if elem == ")":
-                parenthesis -= 1
-        count += 1
-    left_part = remove_useless_parenthesis(left_part)
-    right_part = remove_useless_parenthesis(right_part)
-    operator = pointer[0]
-    if operator == "":
-        if split[0] == NOT:
-            return split[1]
-        else:
-            return NOT + " " + split[0]
-    if operator == AND:
-        return put_neg_inside(left_part) + " or " + put_neg_inside(right_part)
-    if operator == OR:
-        return put_neg_inside(left_part) + " and " + put_neg_inside(right_part)
-    elif operator == NEXT:
-        return NEXT + " (" + put_neg_inside(right_part[1:len(right_part)-1]) + ")"
-    elif operator == WEAK_NEXT:
-        return NEXT + " (" + put_neg_inside(right_part[1:len(right_part)-1]) + ")"
-    elif operator == EVENTUALLY:
-        return GLOBALLY + " (" + put_neg_inside(right_part[1:len(right_part)-1]) + ")"
-    elif operator == GLOBALLY:
-        return EVENTUALLY + " (" + put_neg_inside(right_part[1:len(right_part) - 1]) + ")"
-
-
 def delta(state, action_effect):
+    # The or of states is managed in this method. Typically in a deterministic automaton we have states of kind
+    # [q1,q2], then we have to understand where with a specific symbol will go q1 and where will go q2.
+    # This if applies the delta to each state and put the states in a result set, that will be returned as a string.
+    # E.g. q1-> q2,q3, q2->q2 (with 'a' for example). The result set will be {q2,q3} and the returned string will be
+    # q2, q3.
     if OR_STATE_SEPARATOR in state:
         states_set = set([])
         for elem in state.split(OR_STATE_SEPARATOR):
@@ -177,7 +18,13 @@ def delta(state, action_effect):
                 if d == TRUE:                       # For the angelic non-determinism
                     return TRUE
                 if d != FALSE:
-                    states_set.add(d)
+                    # It is used for avoiding duplicates, e.g. [q1, q2, q1] -> [q1, q2]
+                    if OR_STATE_SEPARATOR in d:
+                        for el in d.split(OR_STATE_SEPARATOR):
+                            if el not in states_set:
+                                states_set.add(el)
+                    elif d not in states_set:
+                        states_set.add(d)
         if len(states_set) < 1:
             return FALSE
         else:
@@ -209,18 +56,8 @@ def delta(state, action_effect):
         if len(result_set) < 1:
             return TRUE
         else:
-            return_value = str(result_set[0])
-            for i in range(1, len(result_set)):
-                append = True
-                for j in range(len(result_set)):
-                    if i != j:
-                        to_put = result_set[i]
-                        if to_put == result_set[j] or to_put + AND_STATE_SEPARATOR in result_set[j]:
-                            append = False
-                            break
-                if append:
-                    return_value += AND_STATE_SEPARATOR + elem
-            return return_value
+            # Auxiliary method for computing the and between delta, avoiding duplicates
+            return compute_tf_and(result_set)
     formula_type = cl[state]
     if formula_type == LIT:
         split = state.replace(" ", ",").replace("not,", "not ").split()
@@ -369,12 +206,29 @@ def print_state(current_state, fluents, new_state):
     print("\tNew state: [" + new_state + "]\n")
 
 
+# The method is quite simple: it applies the delta function for each fluents in the sequence, keeping only the current
+# state. It does not store the transition function, but it computes that at runtime.
 def run_on_the_fly_dfa(s0, trace):
     current_state = s0
     for fluents in trace:
+        # I add to the already true fluents also the last fluent. By definition, if the resulting state will be true,
+        # then it can reach the 'ended' state
         fluents_last = fluents + (LAST,)
         if current_state != ENDED:
             next_state = delta(current_state, fluents)
+            if OR_STATE_SEPARATOR in next_state:
+                split = next_state.split(OR_STATE_SEPARATOR)
+                next_state = ""
+                states_set = set([])
+                for elem in split:
+                    if AND_STATE_SEPARATOR in elem:
+                        elem = sort_and_state(elem)
+                    if elem not in states_set:
+                        states_set.add(elem)
+                        if len(next_state) < 1:
+                            next_state = elem
+                        else:
+                            next_state += OR_STATE_SEPARATOR + elem
             if next_state != TRUE and delta(current_state, fluents_last) == TRUE:
                 if next_state != "":
                     next_state += OR_STATE_SEPARATOR + ENDED

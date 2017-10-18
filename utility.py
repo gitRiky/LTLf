@@ -376,3 +376,14 @@ def from_fzsets_to_set(s):
                 state += OR_STATE_SEPARATOR + elem
         new_set.add(state)
     return new_set
+
+
+def sort_and_state(elem):
+    and_state_list = sorted(elem.split(AND_STATE_SEPARATOR))
+    and_state = ""
+    for sub_elem in and_state_list:
+        if len(and_state) < 1:
+            and_state = sub_elem
+        else:
+            and_state += AND_STATE_SEPARATOR + sub_elem
+    return and_state
