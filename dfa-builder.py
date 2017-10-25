@@ -310,7 +310,13 @@ def print_dfa(s0, s, transition_function, sf):
         state = key[0]
         fluents = key[1]
         print("\tState: [" + state + "]")
-        print("\tFluents: " + str(fluents))
+        fluents_to_print = ""
+        for elem in fluents:
+            if len(fluents_to_print) < 1:
+                fluents_to_print = str(elem)
+            else:
+                fluents_to_print += " or " + str(elem)
+        print("\tFluents: " + fluents_to_print)
         print("\tNew state: [" + transition_function[key] + "]\n")
     print("\n----------------------------------------------\n")
 
@@ -328,6 +334,98 @@ def run_dfa(sequence, s0, transition_function, sf):
     if current_state in sf:
         return True
     return False
+
+
+def verify_containment(tuple1, tuple2):
+    contained = False
+    for elem1 in tuple1:
+        contained = False
+        for elem2 in tuple2:
+            if elem1 == elem2:
+                contained = True
+                break
+        if not contained:
+            return False
+    return contained
+
+
+# It must return a tuple representing the or of fluents
+def simplify_dnf(dnf):
+    new_clauses = dnf.copy()
+    auxiliary_set = dnf.copy()
+    for clause in dnf:
+        for clause_to_compare in auxiliary_set:
+            if clause != clause_to_compare:
+                if len(clause) < len(clause_to_compare):
+                    if verify_containment(clause, clause_to_compare):
+                        new_clauses.discard(clause_to_compare)
+                elif len(clause) > len(clause_to_compare):
+                    if verify_containment(clause_to_compare, clause):
+                        new_clauses.discard(clause)
+    print("New clauses: " + str(new_clauses))
+    compact_tuple = ()
+    for elem in new_clauses:
+        compact_tuple += (elem,)
+    print(str(compact_tuple))
+    return compact_tuple
+
+
+# # It must return a tuple representing the or of fluents
+# def simplify_dnf(dnf):
+#     no_more_simplification = False
+#     new_clauses = dnf.copy()
+#     while not no_more_simplification:
+#         auxiliary_set = dnf.copy()
+#         for clause in dnf:
+#             for clause_to_compare in auxiliary_set:
+#                 if clause != clause_to_compare:
+#                     if len(clause) < len(clause_to_compare):
+#                         if verify_containment(clause, clause_to_compare):
+#                             new_clauses.discard(clause_to_compare)
+#                     elif len(clause) > len(clause_to_compare):
+#                         if verify_containment(clause_to_compare, clause):
+#                             new_clauses.discard(clause)
+#         print("New clauses: " + str(new_clauses))
+#         if new_clauses.difference(dnf) == set([]):
+#             no_more_simplification = True
+#         else:
+#             dnf = new_clauses.copy()
+#     compact_tuple = ()
+#     for elem in new_clauses:
+#         compact_tuple += (elem,)
+#     print(str(compact_tuple))
+#     return compact_tuple
+
+
+def compact_fluents_notation(t_function, s):
+    compact_t_function = {}
+    same_state_dict = {}
+    for state in s:
+        if state not in [TRUE, ENDED, FALSE]:
+            for pointer1 in range(0, len(proposition_combination)-1):
+                key1 = (state, proposition_combination[pointer1])
+                next_state = t_function[key1]
+                dict_key = (state, next_state)
+                if dict_key not in same_state_dict.keys():
+                    same_state_dict[dict_key] = {tuple(key1[1])}
+                for pointer2 in range(pointer1+1, len(proposition_combination)):
+                    key2 = (state, proposition_combination[pointer2])
+                    if next_state == t_function[key2]:
+                        old_set = same_state_dict[dict_key]
+                        old_set.add(key2[1])
+                        print("Old set: " + str(old_set))
+                        same_state_dict[dict_key] = old_set
+    print(str(same_state_dict))
+    for key in same_state_dict.keys():
+        state = key[0]
+        next_state = key[1]
+        compact_fluents = simplify_dnf(same_state_dict[key])
+        compact_t_function[(state, compact_fluents)] = next_state
+    #         compact_fluents = simplify_dnf(fluents_or_set)
+    #         new_key = (state, compact_fluents)
+    #         compact_t_function[new_key] = next_state
+    # print(str(compact_t_function))
+    return compact_t_function
 
 
 def main():
@@ -348,35 +446,36 @@ def main():
             alphabet.append(line)
     create_proposition_combination(proposition_combination)
     s, transition_function, sf = ltlf_2_dfa(proposition_combination, nnf)
-    print_dfa(nnf, s, transition_function, sf)
-    done = False
-    while not done:
-        response = input("Do you want to provide a sequence of fluents for simulating a run? (y, n)\n")
-        while response not in ["y", "n"]:
-            print("Not valid response. Type 'y' if you want to continue or 'n' if you want to exit")
-            response = input()
-        if response == "y":
-            sequence = []
-            sequence_file_name = input("Insert the name of the file containing the sequence of fluents\n")
-            with codecs.open(sequence_file_name, 'r') as file_handle:
-                for line in file_handle:
-                    line = line.replace("\n", "")
-                    if line == "":
-                        sequence.append(())
-                    else:
-                        split = line.split(",")
-                        tuple_res = ()
-                        for elem in split:
-                            tuple_res += (elem,)
-                        sequence.append(tuple_res)
-            print("\n-----------------------------------------------------------\n")
-            final_state_reached = run_dfa(sequence, nnf, transition_function, sf)
-            if final_state_reached:
-                print("The trace satisfies the LTLf formula\n")
-            else:
-                print("The trace does not satisfy the LTLf formula\n")
-        else:
-            done = True
+    compact_transition_function = compact_fluents_notation(transition_function, s)
+    print_dfa(nnf, s, compact_transition_function, sf)
+    # done = False
+    # while not done:
+    #     response = input("Do you want to provide a sequence of fluents for simulating a run? (y, n)\n")
+    #     while response not in ["y", "n"]:
+    #         print("Not valid response. Type 'y' if you want to continue or 'n' if you want to exit")
+    #         response = input()
+    #     if response == "y":
+    #         sequence = []
+    #         sequence_file_name = input("Insert the name of the file containing the sequence of fluents\n")
+    #         with codecs.open(sequence_file_name, 'r') as file_handle:
+    #             for line in file_handle:
+    #                 line = line.replace("\n", "")
+    #                 if line == "":
+    #                     sequence.append(())
+    #                 else:
+    #                     split = line.split(",")
+    #                     tuple_res = ()
+    #                     for elem in split:
+    #                         tuple_res += (elem,)
+    #                     sequence.append(tuple_res)
+    #         print("\n-----------------------------------------------------------\n")
+    #         final_state_reached = run_dfa(sequence, nnf, transition_function, sf)
+    #         if final_state_reached:
+    #             print("The trace satisfies the LTLf formula\n")
+    #         else:
+    #             print("The trace does not satisfy the LTLf formula\n")
+    #     else:
+    #         done = True
 
 
 main()
