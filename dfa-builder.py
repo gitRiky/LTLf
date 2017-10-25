@@ -421,10 +421,6 @@ def compact_fluents_notation(t_function, s):
         next_state = key[1]
         compact_fluents = simplify_dnf(same_state_dict[key])
         compact_t_function[(state, compact_fluents)] = next_state
-    #         compact_fluents = simplify_dnf(fluents_or_set)
-    #         new_key = (state, compact_fluents)
-    #         compact_t_function[new_key] = next_state
-    # print(str(compact_t_function))
     return compact_t_function
 
 
@@ -448,34 +444,34 @@ def main():
     s, transition_function, sf = ltlf_2_dfa(proposition_combination, nnf)
     compact_transition_function = compact_fluents_notation(transition_function, s)
     print_dfa(nnf, s, compact_transition_function, sf)
-    # done = False
-    # while not done:
-    #     response = input("Do you want to provide a sequence of fluents for simulating a run? (y, n)\n")
-    #     while response not in ["y", "n"]:
-    #         print("Not valid response. Type 'y' if you want to continue or 'n' if you want to exit")
-    #         response = input()
-    #     if response == "y":
-    #         sequence = []
-    #         sequence_file_name = input("Insert the name of the file containing the sequence of fluents\n")
-    #         with codecs.open(sequence_file_name, 'r') as file_handle:
-    #             for line in file_handle:
-    #                 line = line.replace("\n", "")
-    #                 if line == "":
-    #                     sequence.append(())
-    #                 else:
-    #                     split = line.split(",")
-    #                     tuple_res = ()
-    #                     for elem in split:
-    #                         tuple_res += (elem,)
-    #                     sequence.append(tuple_res)
-    #         print("\n-----------------------------------------------------------\n")
-    #         final_state_reached = run_dfa(sequence, nnf, transition_function, sf)
-    #         if final_state_reached:
-    #             print("The trace satisfies the LTLf formula\n")
-    #         else:
-    #             print("The trace does not satisfy the LTLf formula\n")
-    #     else:
-    #         done = True
+    done = False
+    while not done:
+        response = input("Do you want to provide a sequence of fluents for simulating a run? (y, n)\n")
+        while response not in ["y", "n"]:
+            print("Not valid response. Type 'y' if you want to continue or 'n' if you want to exit")
+            response = input()
+        if response == "y":
+            sequence = []
+            sequence_file_name = input("Insert the name of the file containing the sequence of fluents\n")
+            with codecs.open(sequence_file_name, 'r') as file_handle:
+                for line in file_handle:
+                    line = line.replace("\n", "")
+                    if line == "":
+                        sequence.append(())
+                    else:
+                        split = line.split(",")
+                        tuple_res = ()
+                        for elem in split:
+                            tuple_res += (elem,)
+                        sequence.append(tuple_res)
+            print("\n-----------------------------------------------------------\n")
+            final_state_reached = run_dfa(sequence, nnf, transition_function, sf)
+            if final_state_reached:
+                print("The trace satisfies the LTLf formula\n")
+            else:
+                print("The trace does not satisfy the LTLf formula\n")
+        else:
+            done = True
 
 
 main()
