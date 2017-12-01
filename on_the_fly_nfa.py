@@ -160,6 +160,8 @@ def delta(state, action_effect):
             return d2
         if d2 == TRUE:
             return d1
+        if d1 == d2:
+            return d1
         return d1 + AND_STATE_SEPARATOR + d2
     elif formula_type == OR:
         alpha, beta = find_alpha_beta(state, formula_type)
@@ -174,6 +176,8 @@ def delta(state, action_effect):
         if d1 == FALSE:
             return d2
         if d2 == FALSE:
+            return d1
+        if d1 == d2:
             return d1
         return d1 + OR_STATE_SEPARATOR + d2
 

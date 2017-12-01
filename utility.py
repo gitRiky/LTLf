@@ -287,8 +287,10 @@ def has_less_priority(op1, op2):
 
 def aux(sub_elem, sub_elem2, rs):
     entry = set([])
+    print("Aux sub_elem: " + sub_elem)
     if AND_STATE_SEPARATOR in sub_elem:
         for s_e in sub_elem.split(AND_STATE_SEPARATOR):
+            print("Subelem in the and: " + s_e)
             if s_e != sub_elem2 and s_e + AND_STATE_SEPARATOR not in sub_elem2 and \
                                     AND_STATE_SEPARATOR + s_e not in sub_elem2:
                 entry.add(s_e)
@@ -305,6 +307,7 @@ def aux(sub_elem, sub_elem2, rs):
 
 
 def compute_tf_and(input_set):
+    print(str(input_set))
     if len(input_set) == 1:
         result = ""
         for elem in input_set:
@@ -332,14 +335,15 @@ def compute_tf_and(input_set):
                 else:
                     elem += OR_STATE_SEPARATOR + fs_entry
             rs.clear()
+        elem2 = input_set[i + 1]
         if OR_STATE_SEPARATOR in elem:
             for sub_elem in elem.split(OR_STATE_SEPARATOR):
-                elem2 = input_set[i+1]
                 if OR_STATE_SEPARATOR in elem2:
                     for sub_elem2 in elem2.split(OR_STATE_SEPARATOR):
                         aux(sub_elem, sub_elem2, rs)
+                else:
+                    aux(sub_elem, elem2, rs)
         else:
-            elem2 = input_set[i + 1]
             if OR_STATE_SEPARATOR in elem2:
                 for sub_elem2 in elem2.split(OR_STATE_SEPARATOR):
                     aux(elem, sub_elem2, rs)

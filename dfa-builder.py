@@ -185,6 +185,8 @@ def delta(state, action_effect):
             return d2
         if d2 == TRUE:
             return d1
+        if d1 == d2:
+            return d1
         return d1 + AND_STATE_SEPARATOR + d2
     elif formula_type == OR:
         alpha, beta = find_alpha_beta(state, formula_type)
@@ -199,6 +201,8 @@ def delta(state, action_effect):
         if d1 == FALSE:
             return d2
         if d2 == FALSE:
+            return d1
+        if d1 == d2:
             return d1
         return d1 + OR_STATE_SEPARATOR + d2
 
@@ -350,7 +354,7 @@ def verify_containment(tuple1, tuple2):
 
 
 # It must return a tuple representing the or of fluents
-def simplify_dnf(dnf):
+def simplify_dnf_2(dnf):
     new_clauses = dnf.copy()
     auxiliary_set = dnf.copy()
     for clause in dnf:
@@ -368,33 +372,6 @@ def simplify_dnf(dnf):
         compact_tuple += (elem,)
     print(str(compact_tuple))
     return compact_tuple
-
-
-# # It must return a tuple representing the or of fluents
-# def simplify_dnf(dnf):
-#     no_more_simplification = False
-#     new_clauses = dnf.copy()
-#     while not no_more_simplification:
-#         auxiliary_set = dnf.copy()
-#         for clause in dnf:
-#             for clause_to_compare in auxiliary_set:
-#                 if clause != clause_to_compare:
-#                     if len(clause) < len(clause_to_compare):
-#                         if verify_containment(clause, clause_to_compare):
-#                             new_clauses.discard(clause_to_compare)
-#                     elif len(clause) > len(clause_to_compare):
-#                         if verify_containment(clause_to_compare, clause):
-#                             new_clauses.discard(clause)
-#         print("New clauses: " + str(new_clauses))
-#         if new_clauses.difference(dnf) == set([]):
-#             no_more_simplification = True
-#         else:
-#             dnf = new_clauses.copy()
-#     compact_tuple = ()
-#     for elem in new_clauses:
-#         compact_tuple += (elem,)
-#     print(str(compact_tuple))
-#     return compact_tuple
 
 
 def compact_fluents_notation(t_function, s):
@@ -419,6 +396,7 @@ def compact_fluents_notation(t_function, s):
     for key in same_state_dict.keys():
         state = key[0]
         next_state = key[1]
+        print("NOT COMPACT FLUENT NOTATION: " + str(same_state_dict[key]))
         compact_fluents = simplify_dnf(same_state_dict[key])
         compact_t_function[(state, compact_fluents)] = next_state
     return compact_t_function
@@ -472,6 +450,137 @@ def main():
                 print("The trace does not satisfy the LTLf formula\n")
         else:
             done = True
+
+
+# put the not for the false fluents
+def complete_clauses(dnf):
+    new_dnf = set([])
+    for t in dnf:
+        new_tuple = []
+        alp_index = 0
+        tuple_index = 0
+        while alp_index < len(alphabet) and tuple_index < len(t):
+            elem = t[tuple_index]
+            if elem == alphabet[alp_index]:
+                new_tuple.append(elem)
+                alp_index += 1
+                tuple_index += 1
+            else:
+                new_tuple.append("not " + alphabet[alp_index])
+                alp_index += 1
+            print(str(new_tuple))
+        if tuple_index == len(t):
+            for fluent in alphabet[alp_index:]:
+                new_tuple.append("not " + fluent)
+        tup = ()
+        for elem in new_tuple:
+            tup += (elem,)
+        new_dnf.add(tup)
+    return new_dnf
+
+
+def print_set(to_print, name):
+    print(name)
+    for elem in to_print:
+        print(elem)
+
+
+def extract_general_formulas(dnf):
+    new_clauses = dnf.copy()
+    for clause in dnf:
+        for clause_to_compare in dnf:
+            if clause != clause_to_compare:
+                if len(clause) < len(clause_to_compare):
+                    if verify_containment(clause, clause_to_compare):
+                        new_clauses.discard(clause_to_compare)
+                elif len(clause) > len(clause_to_compare):
+                    if verify_containment(clause_to_compare, clause):
+                        new_clauses.discard(clause)
+    print("New clauses: " + str(new_clauses))
+    compact_tuple = ()
+    for elem in new_clauses:
+        compact_tuple += (elem,)
+    print(str(compact_tuple))
+    return compact_tuple
+
+
+def simplify_dnf(dnf):
+    complete_dnf = complete_clauses(dnf)
+    dnf = simplify_equivalent_clauses(complete_dnf)
+    compact_fluents = extract_general_formulas(dnf)
+    return compact_fluents
+
+
+def simplify_equivalent_clauses(dnf):
+    done = False
+    compact_dnf = dnf.copy()
+    counter = 0
+    while not done:
+        set_to_zero = False
+        if counter >= len(dnf):
+            counter = 0
+        dnf_list = list(dnf)
+        elem = dnf_list[counter]
+        print_set(dnf_list, "DNF: ")
+        print("Elem: " + str(elem))
+        for i in range(counter + 1, len(dnf)):
+            elem_to_compare = dnf_list[i]
+            if elem != elem_to_compare and len(elem) == len(elem_to_compare):
+                print("elem tc: " + str(elem_to_compare))
+                del_index = try_literal_deletion(elem, elem_to_compare)
+                if del_index != -1:
+                    print("We can delete")
+                    print_set(compact_dnf, "compact_dnf prior to deletion: ")
+                    compact_dnf.discard(elem)
+                    compact_dnf.discard(elem_to_compare)
+                    new_tuple = ()
+                    for j in range(0, len(elem)):
+                        if j != del_index:
+                            new_tuple += (elem[j],)
+                    print("New tuple: " + str(new_tuple))
+                    compact_dnf.add(new_tuple)
+                    print_set(compact_dnf, "compact_dnf after deletion: ")
+                    set_to_zero = True
+                    break
+        if set_to_zero:
+            counter = 0
+        else:
+            counter += 1
+        print("counter: " + str(counter))
+        if counter >= len(dnf) and dnf.difference(compact_dnf) == set([]):
+            print("Done")
+            done = True
+        else:
+            dnf = compact_dnf.copy()
+    return compact_dnf
+
+
+def try_literal_deletion(elem1, elem2):
+    num_lit_and_neg = 0
+    del_index = -1
+    for i in range(0, len(elem1)):
+        if elem1[i] != elem2[i]:
+            split1 = elem1[i].split("not ")
+            split2 = elem2[i].split("not ")
+            if len(split1) == 2 and len(split2) == 1:
+                if split1[1] == elem2[i]:
+                    if num_lit_and_neg == 0:
+                        num_lit_and_neg = 1
+                        del_index = i
+                    else:
+                        return -1
+            elif len(split1) == 1 and len(split2) == 2:
+                if elem1[i] == split2[1]:
+                    if num_lit_and_neg == 0:
+                        num_lit_and_neg = 1
+                        del_index = i
+                    else:
+                        return -1
+            else:
+                return -1
+    if num_lit_and_neg == 1:
+        return del_index
+    return -1
 
 
 main()

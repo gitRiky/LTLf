@@ -28,6 +28,7 @@ def delta(state, action_effect):
             return TRUE
         else:
             # Auxiliary method for computing the and between delta, avoiding duplicates
+            print("Problem in compute_tf")
             return compute_tf_and(result_set)
     formula_type = cl[state]
     if formula_type == LIT:
@@ -154,6 +155,8 @@ def delta(state, action_effect):
             return d2
         if d2 == TRUE:
             return d1
+        if d1 == d2:
+            return d1
         return d1 + AND_STATE_SEPARATOR + d2
     elif formula_type == OR:
         alpha, beta = find_alpha_beta(state, formula_type)
@@ -168,6 +171,8 @@ def delta(state, action_effect):
         if d1 == FALSE:
             return d2
         if d2 == FALSE:
+            return d1
+        if d1 == d2:
             return d1
         return d1 + OR_STATE_SEPARATOR + d2
 
@@ -238,8 +243,6 @@ def ltlf_2_nfa(propositions, nnf):
                     elif new_state not in s:
                         s.add(new_state)
                     transition_function[tup] = new_state
-                    if FALSE in new_state:
-                        print("State: " + state + ", new state: " + new_state)
     return s, transition_function
 
 
