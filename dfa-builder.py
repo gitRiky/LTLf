@@ -379,7 +379,7 @@ def compact_fluents_notation(t_function, s):
     same_state_dict = {}
     for state in s:
         if state not in [TRUE, ENDED, FALSE]:
-            for pointer1 in range(0, len(proposition_combination)-1):
+            for pointer1 in range(0, len(proposition_combination)):
                 key1 = (state, proposition_combination[pointer1])
                 next_state = t_function[key1]
                 dict_key = (state, next_state)
