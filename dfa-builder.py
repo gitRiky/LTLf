@@ -403,6 +403,8 @@ def compact_fluents_notation(t_function, s):
 
 
 def main():
+    planning = True
+
     if len(sys.argv) < 2:
         print("Correct usage: python .\\nfa-builder.py alphabet_file")
         exit(-1)
@@ -414,6 +416,12 @@ def main():
     # The dictionary cl will be used in the delta function for understanding what kind of formula is it and what
     # recursive rule it has to follow
     sigma(nnf, cl)
+
+    if planning:
+        with codecs.open("cl.txt", "w") as file_handle:
+            for key in cl.keys():
+                pair = key + "\t" + cl[key] + "\n"
+                file_handle.write(pair)
     with codecs.open(alphabet_file, 'r') as file_handle:
         for line in file_handle:
             line = line.replace("\n", "")
