@@ -150,6 +150,7 @@ def main():
     cl = {}
     sigma(goal, cl)
     with codecs.open(NEXT_STATE_FILE_PATH, "w") as file_handle:
+        goal = goal.replace(" ", "*")
         file_handle.write(goal)
     with codecs.open(CL_FILE_PATH, "w") as file_handle:
         for key in cl.keys():
