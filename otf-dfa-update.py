@@ -54,6 +54,8 @@ def delta(state, action_effect):
     # This if applies the delta to each state and put the states in a result set, that will be returned as a string.
     # E.g. q1-> q2,q3, q2->q2 (with 'a' for example). The result set will be {q2,q3} and the returned string will be
     # q2, q3.
+    if state == TRUE:
+        return TRUE
     if OR_STATE_SEPARATOR in state:
         states_set = set([])
         for elem in state.split(OR_STATE_SEPARATOR):
@@ -284,6 +286,6 @@ def main():
     with codecs.open(NEXT_STATE_FILE_PATH, "w") as file_handle:
         next_state = "[" + next_state.replace(" ", "*") + "]"
         file_handle.write(next_state)
-    with codecs.open(LOG_FILE_PATH, "w") as file_handle:
+    with codecs.open(LOG_FILE_PATH, "a") as file_handle:
         file_handle.write(log_string)
 main()
