@@ -249,6 +249,7 @@ def construct_fluents_tuple(state):
     # only the fluents contained in the goal are needed!!! Pre-processing c++ side
     fluents_tuple = ()
     for fluent in state.split(";"):
+        fluent = fluent.replace(" ", "")
         fluents_tuple += (fluent,)
     return fluents_tuple
 
