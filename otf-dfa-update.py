@@ -3,6 +3,9 @@ from LTLf_translator import sigma
 import sys
 import codecs
 
+CL_FILE_PATH = "/home/riccardo/nfa-builder/cl.txt"
+LOG_FILE_PATH = "/home/riccardo/nfa-builder/log.txt"
+NEXT_STATE_FILE_PATH = "/home/riccardo/fs/workspace/nextState.txt"
 cl = {}
 
 
@@ -260,7 +263,7 @@ def update_state(domain_state, automaton_state):
 
 
 def read_cl():
-    with codecs.open("cl.txt", "r") as file_handle:
+    with codecs.open(CL_FILE_PATH, "r") as file_handle:
         for line in file_handle:
             line = line.replace("\n", "")
             split = line.split("\t")
@@ -270,12 +273,17 @@ def read_cl():
 def main():
     domain_state = sys.argv[1]
     automaton_state = sys.argv[2]
+    log_string = ""
     domain_state = construct_fluents_tuple(domain_state)
+    log_string += "Domain state:\n" + str(domain_state) + "\n"
     automaton_state = automaton_state.replace("*", " ")
+    log_string += "Automaton state:\n" + str(automaton_state) + "\n"
     read_cl()
     next_state = update_state(domain_state, automaton_state)
-    with codecs.open("nextState.txt", "w") as file_handle:
+    log_string += "Next state:\n" + str(next_state) + "\n-------------------------------------------------\n"
+    with codecs.open(NEXT_STATE_FILE_PATH, "w") as file_handle:
         next_state = "[" + next_state.replace(" ", "*") + "]"
         file_handle.write(next_state)
-
+    with codecs.open(LOG_FILE_PATH, "w") as file_handle:
+        file_handle.write(log_string)
 main()
