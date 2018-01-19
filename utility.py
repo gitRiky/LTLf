@@ -11,14 +11,14 @@ OR = "or"
 NEXT = "X"
 WEAK_NEXT = "WX"
 UNTIL = "U"
-WEAK_UNTIL = "R"
+RELEASE = "R"
 GLOBALLY = "G"
 EVENTUALLY = "F"
 
 AND_STATE_SEPARATOR = " - "
 OR_STATE_SEPARATOR = ", "
 
-OPERATORS = [AND, OR, NEXT, WEAK_NEXT, UNTIL, GLOBALLY, EVENTUALLY, WEAK_UNTIL]
+OPERATORS = [AND, OR, NEXT, WEAK_NEXT, UNTIL, GLOBALLY, EVENTUALLY, RELEASE]
 
 
 def remove_spaces(form):
@@ -41,7 +41,7 @@ def find_alpha_beta(subformula, formula_type):
         counter += 1
     alpha = remove_spaces(populate_subformula(split, 0, pointer[0]))
     beta = remove_spaces(populate_subformula(split, pointer[0] + 1, len(split)))
-    if formula_type == UNTIL or formula_type == WEAK_UNTIL:
+    if formula_type == UNTIL or formula_type == RELEASE:
         alpha = alpha[1:len(alpha)-1]
         beta = beta[1:len(beta)-1]
     return alpha, beta
@@ -261,7 +261,7 @@ def sigma(ltlf_formula, cl, literal=False):
         sigma(subformula, cl)
         subformula = NEXT + " (" + populate_subformula(split, 0, len(split)) + ")"
         cl[remove_spaces(subformula)] = NEXT
-    elif operator == WEAK_UNTIL:
+    elif operator == RELEASE:
         subformula = populate_subformula(split, 1, pointer[2]-1)
         sigma(subformula, cl)
         subformula = populate_subformula(split, pointer[2] + 2, len(split)-1)
@@ -270,14 +270,170 @@ def sigma(ltlf_formula, cl, literal=False):
         cl[remove_spaces(subformula)] = WEAK_NEXT
 
 
+def verify_containment(tuple1, tuple2):
+    contained = False
+    for elem1 in tuple1:
+        contained = False
+        for elem2 in tuple2:
+            if elem1 == elem2:
+                contained = True
+                break
+        if not contained:
+            return False
+    return contained
+
+
+def extract_general_formulas(dnf):
+    new_clauses = dnf.copy()
+    for clause in dnf:
+        for clause_to_compare in dnf:
+            if clause != clause_to_compare:
+                if len(clause) < len(clause_to_compare):
+                    if verify_containment(clause, clause_to_compare):
+                        new_clauses.discard(clause_to_compare)
+                elif len(clause) > len(clause_to_compare):
+                    if verify_containment(clause_to_compare, clause):
+                        new_clauses.discard(clause)
+    print("New clauses: " + str(new_clauses))
+    compact_tuple = ()
+    for elem in new_clauses:
+        compact_tuple += (elem,)
+    print(str(compact_tuple))
+    return compact_tuple
+
+
+def simplify_dnf(dnf, alp):
+    complete_dnf = complete_clauses(dnf, alp)
+    dnf = simplify_equivalent_clauses(complete_dnf)
+    compact_fluents = extract_general_formulas(dnf)
+    return compact_fluents
+
+
+def simplify_equivalent_clauses(dnf):
+    done = False
+    compact_dnf = dnf.copy()
+    counter = 0
+    while not done:
+        set_to_zero = False
+        if counter >= len(dnf):
+            counter = 0
+        dnf_list = list(dnf)
+        elem = dnf_list[counter]
+        for i in range(counter + 1, len(dnf)):
+            elem_to_compare = dnf_list[i]
+            if elem != elem_to_compare and len(elem) == len(elem_to_compare):
+                del_index = try_literal_deletion(elem, elem_to_compare)
+                if del_index != -1:
+                    compact_dnf.discard(elem)
+                    compact_dnf.discard(elem_to_compare)
+                    new_tuple = ()
+                    for j in range(0, len(elem)):
+                        if j != del_index:
+                            new_tuple += (elem[j],)
+                    compact_dnf.add(new_tuple)
+                    set_to_zero = True
+                    break
+        if set_to_zero:
+            counter = 0
+        else:
+            counter += 1
+        if counter >= len(dnf) and dnf.difference(compact_dnf) == set([]):
+            done = True
+        else:
+            dnf = compact_dnf.copy()
+    return compact_dnf
+
+
+# put the not for the false fluents
+def complete_clauses(dnf, alphabet):
+    new_dnf = set([])
+    for t in dnf:
+        new_tuple = []
+        alp_index = 0
+        tuple_index = 0
+        while alp_index < len(alphabet) and tuple_index < len(t):
+            elem = t[tuple_index]
+            if elem == alphabet[alp_index]:
+                new_tuple.append(elem)
+                alp_index += 1
+                tuple_index += 1
+            else:
+                new_tuple.append("not " + alphabet[alp_index])
+                alp_index += 1
+            print(str(new_tuple))
+        if tuple_index == len(t):
+            for fluent in alphabet[alp_index:]:
+                new_tuple.append("not " + fluent)
+        tup = ()
+        for elem in new_tuple:
+            tup += (elem,)
+        new_dnf.add(tup)
+    return new_dnf
+
+
+def try_literal_deletion(elem1, elem2):
+    num_lit_and_neg = 0
+    del_index = -1
+    for i in range(0, len(elem1)):
+        if elem1[i] != elem2[i]:
+            split1 = elem1[i].split("not ")
+            split2 = elem2[i].split("not ")
+            if len(split1) == 2 and len(split2) == 1:
+                if split1[1] == elem2[i]:
+                    if num_lit_and_neg == 0:
+                        num_lit_and_neg = 1
+                        del_index = i
+                    else:
+                        return -1
+            elif len(split1) == 1 and len(split2) == 2:
+                if elem1[i] == split2[1]:
+                    if num_lit_and_neg == 0:
+                        num_lit_and_neg = 1
+                        del_index = i
+                    else:
+                        return -1
+            else:
+                return -1
+    if num_lit_and_neg == 1:
+        return del_index
+    return -1
+
+
+def compact_fluents_notation(t_function, s, alp, proposition_combination):
+    compact_t_function = {}
+    same_state_dict = {}
+    for state in s:
+        if state not in [TRUE, ENDED, FALSE]:
+            for pointer1 in range(0, len(proposition_combination)):
+                key1 = (state, proposition_combination[pointer1])
+                next_state = t_function[key1]
+                dict_key = (state, next_state)
+                if dict_key not in same_state_dict.keys():
+                    same_state_dict[dict_key] = {tuple(key1[1])}
+                for pointer2 in range(pointer1+1, len(proposition_combination)):
+                    key2 = (state, proposition_combination[pointer2])
+                    if next_state == t_function[key2]:
+                        old_set = same_state_dict[dict_key]
+                        old_set.add(key2[1])
+                        print("Old set: " + str(old_set))
+                        same_state_dict[dict_key] = old_set
+    print(str(same_state_dict))
+    for key in same_state_dict.keys():
+        state = key[0]
+        next_state = key[1]
+        print("NOT COMPACT FLUENT NOTATION: " + str(same_state_dict[key]))
+        compact_fluents = simplify_dnf(same_state_dict[key], alp)
+        compact_t_function[(state, compact_fluents)] = next_state
+    return compact_t_function
+
 def has_less_priority(op1, op2):
     if op1 == AND and op2 == OR:
         return False
     elif op1 == OR and op2 == AND:
         return True
-    elif op1 == NEXT or op1 == WEAK_NEXT or op1 == EVENTUALLY or op1 == UNTIL or op1 == WEAK_UNTIL or op1 == GLOBALLY:
+    elif op1 == NEXT or op1 == WEAK_NEXT or op1 == EVENTUALLY or op1 == UNTIL or op1 == RELEASE or op1 == GLOBALLY:
         return False
-    elif op2 == NEXT or op2 == WEAK_NEXT or op2 == EVENTUALLY or op2 == UNTIL or op2 == WEAK_UNTIL or op2 == GLOBALLY:
+    elif op2 == NEXT or op2 == WEAK_NEXT or op2 == EVENTUALLY or op2 == UNTIL or op2 == RELEASE or op2 == GLOBALLY:
         return True
     elif op2 == "":
         return True
@@ -307,7 +463,6 @@ def aux(sub_elem, sub_elem2, rs):
 
 
 def compute_tf_and(input_set):
-    print(str(input_set))
     if len(input_set) == 1:
         result = ""
         for elem in input_set:

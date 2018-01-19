@@ -122,7 +122,7 @@ def delta(state, action_effect):
         if d3 == TRUE:
             return d1 + OR_STATE_SEPARATOR + d2
         return d2 + AND_STATE_SEPARATOR + d3
-    elif formula_type == WEAK_UNTIL:
+    elif formula_type == RELEASE:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
         if d1 == FALSE:

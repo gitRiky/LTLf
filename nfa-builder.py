@@ -117,7 +117,7 @@ def delta(state, action_effect):
         if d3 == TRUE:
             return d1 + OR_STATE_SEPARATOR + d2
         return d1 + OR_STATE_SEPARATOR + d2 + AND_STATE_SEPARATOR + d3
-    elif formula_type == WEAK_UNTIL:
+    elif formula_type == RELEASE:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
         if d1 == FALSE:
@@ -288,7 +288,6 @@ def remove_last(transition_function):
 
 
 def print_nfa(s0, s, transition_function):
-    alphabet.remove(LAST)
     print("\n\n----------------------------------------------\n")
     print("Alphabet: " + str(alphabet) + "\n")
 
@@ -306,7 +305,22 @@ def print_nfa(s0, s, transition_function):
         state = key[0]
         fluents = key[1]
         print("\tState: " + state)
-        print("\tFluents: " + str(fluents))
+        fluents_to_print = ""
+        for elem in fluents:
+            if len(elem) > 1:
+                clause = "(" + str(elem[0])
+                for e in elem[1:]:
+                    clause += " and " + str(e)
+                if fluents_to_print == "":
+                    fluents_to_print += clause + ")"
+                else:
+                    fluents_to_print += " or " + clause + ")"
+            else:
+                if fluents_to_print == "":
+                    fluents_to_print += elem[0]
+                else:
+                    fluents_to_print += " or " + elem[0]
+        print("\tFluents: " + fluents_to_print)
         print("\tNew states: {" + transition_function[key] + "}\n")
     print("\n----------------------------------------------\n")
 
@@ -374,13 +388,20 @@ def main():
     create_proposition_combination(proposition_combination)
     s, transition_function = ltlf_2_nfa(proposition_combination, nnf)
     new_transition_function, exist_ended_state, exist_false_state, exist_true_state = remove_last(transition_function)
+    prop_without_last = []
+    for prop in proposition_combination:
+        if LAST not in prop:
+            prop_without_last.append(prop)
+    alphabet.remove(LAST)
+    compact_transition_function = compact_fluents_notation(new_transition_function, s,
+                                                           alphabet, prop_without_last)
     if not exist_true_state and TRUE in s:
         s.remove(TRUE)
     if exist_ended_state:
         s.add(ENDED)
     if not exist_false_state and FALSE in s:
         s.remove(FALSE)
-    print_nfa(nnf, s, new_transition_function)
+    print_nfa(nnf, s, compact_transition_function)
     done = False
     while not done:
         response = input("Do you want to provide a sequence of fluents for simulating a run? (y, n)\n")

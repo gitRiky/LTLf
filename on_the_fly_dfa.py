@@ -145,7 +145,7 @@ def delta(state, action_effect):
         if d3 == TRUE:
             return d1 + OR_STATE_SEPARATOR + d2
         return d2 + AND_STATE_SEPARATOR + d3
-    elif formula_type == WEAK_UNTIL:
+    elif formula_type == RELEASE:
         alpha, beta = find_alpha_beta(state, formula_type)
         d1 = delta(beta, action_effect)
         if d1 == FALSE:
@@ -212,7 +212,7 @@ def print_state(current_state, fluents, new_state):
 
 # The method is quite simple: it applies the delta function for each fluents in the sequence, keeping only the current
 # state. It does not store the transition function, but it computes that at runtime.
-def run_on_the_fly_dfa(s0, trace):
+def run_on_the_fly_dfa(s0, trace, procedure=False):
     current_state = s0
     for fluents in trace:
         # I add to the already true fluents also the last fluent. By definition, if the resulting state will be true,
@@ -239,6 +239,8 @@ def run_on_the_fly_dfa(s0, trace):
                 else:
                     next_state = ENDED
             print_state(current_state, fluents, next_state)
+        if procedure:
+            return next_state
         if next_state == TRUE:
             return True
         if next_state == FALSE:
